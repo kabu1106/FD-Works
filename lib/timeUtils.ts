@@ -151,3 +151,16 @@ export function convertToMinutes(
   
   return dateDiffMinutes + timeMinutes
 }
+
+// 2つの期間が重複しているかチェック（分単位で比較）
+export function isTimeRangeOverlapping(
+  startMinutes1: number,
+  endMinutes1: number,
+  startMinutes2: number,
+  endMinutes2: number
+): boolean {
+  // 期間1: [startMinutes1, endMinutes1]
+  // 期間2: [startMinutes2, endMinutes2]
+  // 重複している場合: startMinutes1 <= endMinutes2 && startMinutes2 <= endMinutes1
+  return startMinutes1 <= endMinutes2 && startMinutes2 <= endMinutes1
+}

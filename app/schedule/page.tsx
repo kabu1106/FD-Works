@@ -244,8 +244,8 @@ export default function SchedulePage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* 左側: 職員リスト */}
           <div className="lg:col-span-1">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-3">職員一覧</h2>
+            <div className="bg-white p-4 rounded-lg shadow border-t-4 border-blue-500">
+              <h2 className="text-lg font-semibold mb-3 text-gray-900">職員一覧</h2>
               <div className="mb-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   所属でフィルタ
@@ -270,45 +270,68 @@ export default function SchedulePage() {
           </div>
 
           {/* 右側: 勤務表 */}
-          <div className="lg:col-span-3">
-            <ScheduleTable
-              schedule={schedule}
-              employees={SAMPLE_EMPLOYEES}
-              sleepGroups={SLEEP_GROUPS}
-              onAddEmployee={handleAddEmployeeToGroup}
-              onRemoveEmployee={handleRemoveEmployeeFromGroup}
-            />
+          <div className="lg:col-span-3 space-y-4">
+            <div className="bg-white p-4 rounded-lg shadow border-t-4 border-green-500">
+              <h2 className="text-lg font-semibold mb-3 text-gray-900">勤務表</h2>
+              <ScheduleTable
+                schedule={schedule}
+                employees={SAMPLE_EMPLOYEES}
+                sleepGroups={SLEEP_GROUPS}
+                onAddEmployee={handleAddEmployeeToGroup}
+                onRemoveEmployee={handleRemoveEmployeeFromGroup}
+              />
+            </div>
 
             {/* 特別休暇フォーム */}
-            <div className="mt-4 bg-white p-4 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-3">特別休暇</h2>
+            <div className="bg-white p-4 rounded-lg shadow border-t-4 border-purple-500">
+              <h2 className="text-lg font-semibold mb-3 text-gray-900">特別休暇</h2>
               <SpecialLeaveForm
                 employees={SAMPLE_EMPLOYEES}
                 leaveTypes={SPECIAL_LEAVE_TYPES}
                 currentDate={selectedDate}
+                existingLeaves={schedule.specialLeaves}
                 onAdd={handleAddSpecialLeave}
               />
               {schedule.specialLeaves.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="font-medium mb-2">登録済み特別休暇</h3>
-                  <div className="space-y-2">
+                <div className="mt-6">
+                  <h3 className="text-md font-semibold mb-4 text-gray-800 pb-2 border-b-2 border-gray-200">
+                    登録済み特別休暇
+                  </h3>
+                  <div className="space-y-3">
                     {schedule.specialLeaves.map(leave => {
                       const employee = SAMPLE_EMPLOYEES.find(e => e.id === leave.employeeId)
                       const startDateTime = `${leave.startDate} ${leave.startTime}`
                       const endDateTime = leave.endDate === leave.startDate
                         ? leave.endTime
                         : `${leave.endDate} ${leave.endTime}`
+                      
+                      // 休暇種別ごとの色分け
+                      const typeColors: { [key in SpecialLeaveType]: string } = {
+                        '年次休暇': 'bg-blue-100 text-blue-800 border-blue-300',
+                        '夏季休暇': 'bg-green-100 text-green-800 border-green-300',
+                        '慶弔休暇': 'bg-purple-100 text-purple-800 border-purple-300',
+                        'その他': 'bg-gray-100 text-gray-800 border-gray-300'
+                      }
+                      
                       return (
-                        <div key={leave.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                          <div className="flex-1">
-                            <div className="font-medium">{employee?.name} - {leave.type}</div>
-                            <div className="text-sm text-gray-600">
-                              {startDateTime} 〜 {endDateTime}
+                        <div
+                          key={leave.id}
+                          className="flex items-center justify-between p-4 bg-gradient-to-r from-white to-gray-50 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex-1 flex items-center gap-4">
+                            <span className={`px-3 py-1.5 text-sm font-semibold rounded-full border ${typeColors[leave.type]}`}>
+                              {leave.type}
+                            </span>
+                            <div>
+                              <div className="font-semibold text-gray-900">{employee?.name}</div>
+                              <div className="text-sm text-gray-600 mt-1">
+                                {startDateTime} 〜 {endDateTime}
+                              </div>
                             </div>
                           </div>
                           <button
                             onClick={() => handleRemoveSpecialLeave(leave.id)}
-                            className="ml-2 px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                            className="ml-4 px-3 py-1.5 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-sm hover:shadow"
                           >
                             削除
                           </button>

@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Employee, SpecialLeaveType } from '@/types'
-import { validateDateTimeRange } from '@/lib/timeUtils'
+import { Employee, SpecialLeaveType, SpecialLeave } from '@/types'
+import { validateDateTimeRange, convertToMinutes, isTimeRangeOverlapping } from '@/lib/timeUtils'
 
 interface SpecialLeaveFormProps {
   employees: Employee[]
   leaveTypes: SpecialLeaveType[]
   currentDate: string // YYYY-MM-DD形式
+  existingLeaves: SpecialLeave[] // 既存の特別休暇
   onAdd: (
     employeeId: string,
     type: SpecialLeaveType,
@@ -18,7 +19,7 @@ interface SpecialLeaveFormProps {
   ) => void
 }
 
-export default function SpecialLeaveForm({ employees, leaveTypes, currentDate, onAdd }: SpecialLeaveFormProps) {
+export default function SpecialLeaveForm({ employees, leaveTypes, currentDate, existingLeaves, onAdd }: SpecialLeaveFormProps) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('')
   const [selectedType, setSelectedType] = useState<SpecialLeaveType>(leaveTypes[0])
   const [startDate, setStartDate] = useState(currentDate)
@@ -66,6 +67,34 @@ export default function SpecialLeaveForm({ employees, leaveTypes, currentDate, o
     const validation = validateDateTimeRange(startDate, startTime, endDate, endTime, currentDate)
     if (!validation.valid) {
       setErrors(prev => ({ ...prev, timeRange: validation.error || '日時の範囲が無効です' }))
+      return
+    }
+
+    // 分単位に変換（現在の選択日付を基準に）
+    const newStartMinutes = convertToMinutes(startDate, startTime, currentDate)
+    const newEndMinutes = convertToMinutes(endDate, endTime, currentDate)
+
+    // 同一職員の既存の休暇と重複していないかチェック
+    const overlappingLeave = existingLeaves.find(leave => {
+      if (leave.employeeId !== selectedEmployeeId) {
+        return false
+      }
+      
+      // 既存の休暇のbaseDateと新しい休暇のcurrentDateが異なる場合も正しく比較するため、
+      // 既存の休暇の日付・時刻を新しい休暇のbaseDate（currentDate）を基準に再計算
+      const existingStartMinutes = convertToMinutes(leave.startDate, leave.startTime, currentDate)
+      const existingEndMinutes = convertToMinutes(leave.endDate, leave.endTime, currentDate)
+      
+      return isTimeRangeOverlapping(
+        newStartMinutes,
+        newEndMinutes,
+        existingStartMinutes,
+        existingEndMinutes
+      )
+    })
+
+    if (overlappingLeave) {
+      setErrors(prev => ({ ...prev, timeRange: 'この職員は既に同じ期間に他の休暇が登録されています' }))
       return
     }
 
