@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 職員
+model Employee {
+  id             String   @id @default(uuid())
+  employeeNumber String   @unique @db.VarChar(50)
+  name           String   @db.VarChar(100)
+  department     String   @db.VarChar(100)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // リレーション
+  sleepGroupAssignments SleepGroupAssignment[]
+  specialLeaves         SpecialLeave[]
+
+  @@map("employees")
+}
+
+// 勤務表の1日のデータ
+model ScheduleDay {
+  id              String   @id @default(uuid())
+  date            DateTime @db.Date
+  status          String   @default("未承認") @db.VarChar(20)
+  hasEverCancelled Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // リレーション
+  sleepGroupAssignments SleepGroupAssignment[]
+  specialLeaves         SpecialLeave[]
+
+  @@unique([date])
+  @@map("schedule_days")
+  @@index([date])
+}
+
+// 仮眠時間グループへの職員配置
+model SleepGroupAssignment {
+  id            String   @id @default(uuid())
+  scheduleDayId String
+  employeeId    String
+  sleepGroup    String   @db.VarChar(20) // 'group1' | 'group2' | 'group3' | 'group4' | 'weekend'
+  createdAt     DateTime @default(now())
+
+  // リレーション
+  scheduleDay ScheduleDay @relation(fields: [scheduleDayId], references: [id], onDelete: Cascade)
+  employee    Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleDayId, employeeId, sleepGroup])
+  @@map("sleep_group_assignments")
+  @@index([scheduleDayId])
+  @@index([employeeId])
+}
+
+// 特別休暇
+model SpecialLeave {
+  id            String   @id @default(uuid())
+  scheduleDayId String
+  employeeId    String
+  type          String   @db.VarChar(20) // '年次休暇' | '夏季休暇' | '慶弔休暇' | 'その他'
+  baseDate      DateTime @db.Date
+  startDate     DateTime @db.Date
+  startTime     String   @db.VarChar(10) // HH:mm形式
+  startMinutes  Int      // 分単位（baseDateを基準とした分）
+  endDate       DateTime @db.Date
+  endTime       String   @db.VarChar(10) // HH:mm形式
+  endMinutes    Int      // 分単位（baseDateを基準とした分）
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // リレーション
+  scheduleDay ScheduleDay @relation(fields: [scheduleDayId], references: [id], onDelete: Cascade)
+  employee    Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("special_leaves")
+  @@index([scheduleDayId])
+  @@index([employeeId])
+  @@index([baseDate])
+}

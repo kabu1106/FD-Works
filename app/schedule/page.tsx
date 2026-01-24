@@ -4,12 +4,26 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { format, addDays, subDays } from 'date-fns'
 import ja from 'date-fns/locale/ja'
-import { Employee, SleepGroup, WorkScheduleDay, SpecialLeave, SpecialLeaveType } from '@/types'
+import {
+  Employee,
+  SleepGroup,
+  WorkScheduleDay,
+  SpecialLeave,
+  SpecialLeaveType,
+  UserRole,
+  WorkScheduleStatus
+} from '@/types'
 import ScheduleTable from '@/components/ScheduleTable'
 import EmployeeList from '@/components/EmployeeList'
 import SpecialLeaveForm from '@/components/SpecialLeaveForm'
-import { saveSchedule, loadSchedule } from '@/lib/storage'
-import { convertToMinutes } from '@/lib/timeUtils'
+import {
+  getScheduleDayAction,
+  addEmployeeToGroupAction,
+  removeEmployeeFromGroupAction,
+  addSpecialLeaveAction,
+  removeSpecialLeaveAction,
+  updateScheduleStatusAction
+} from './actions'
 
 // 仮眠時間グループの定義
 const SLEEP_GROUPS: { [key in SleepGroup]: { label: string; timeRanges: string[] } } = {
@@ -49,6 +63,7 @@ const SPECIAL_LEAVE_TYPES: SpecialLeaveType[] = ['年次休暇', '夏季休暇',
 export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [selectedDepartment, setSelectedDepartment] = useState<string>('全て')
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('一般')
   const [schedule, setSchedule] = useState<WorkScheduleDay>(() => {
     const initial: WorkScheduleDay = {
       date: selectedDate,
@@ -59,10 +74,15 @@ export default function SchedulePage() {
         group4: [],
         weekend: []
       },
-      specialLeaves: []
+      specialLeaves: [],
+      status: '未承認',
+      hasEverCancelled: false
     }
     return initial
   })
+
+  const isEditable =
+    !schedule.status || schedule.status === '未承認' || schedule.status === '修正中'
 
   // 所属のリスト
   const departments = ['全て', ...Array.from(new Set(SAMPLE_EMPLOYEES.map(e => e.department)))]
@@ -85,56 +105,33 @@ export default function SchedulePage() {
   const availableEmployees = filteredEmployees.filter(e => !assignedEmployeeIds.has(e.id))
 
   // 職員を仮眠時間グループに追加
-  const handleAddEmployeeToGroup = (employeeId: string, groupId: SleepGroup) => {
-    setSchedule(prev => {
-      // 既に他のグループに配置されているかチェック
-      const allAssignedIds = [
-        ...prev.sleepGroups.group1,
-        ...prev.sleepGroups.group2,
-        ...prev.sleepGroups.group3,
-        ...prev.sleepGroups.group4,
-        ...prev.sleepGroups.weekend
-      ]
-      
-      if (allAssignedIds.includes(employeeId)) {
-        // 既にこのグループに配置されている場合は何もしない
-        if (prev.sleepGroups[groupId].includes(employeeId)) {
-          return prev
-        }
-        // 他のグループに配置されている場合は警告
-        alert('この職員は既に他のグループに配置されています')
-        return prev
-      }
-
-      const updated = {
-        ...prev,
-        sleepGroups: {
-          ...prev.sleepGroups,
-          [groupId]: [...prev.sleepGroups[groupId], employeeId]
-        }
-      }
-      saveSchedule(selectedDate, updated)
-      return updated
-    })
+  const handleAddEmployeeToGroup = async (employeeId: string, groupId: SleepGroup) => {
+    if (!isEditable) return
+    try {
+      await addEmployeeToGroupAction(selectedDate, employeeId, groupId)
+      // データを再取得
+      const updated = await getScheduleDayAction(selectedDate)
+      setSchedule(updated)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '職員の追加に失敗しました')
+    }
   }
 
   // 職員を仮眠時間グループから削除
-  const handleRemoveEmployeeFromGroup = (employeeId: string, groupId: SleepGroup) => {
-    setSchedule(prev => {
-      const updated = {
-        ...prev,
-        sleepGroups: {
-          ...prev.sleepGroups,
-          [groupId]: prev.sleepGroups[groupId].filter(id => id !== employeeId)
-        }
-      }
-      saveSchedule(selectedDate, updated)
-      return updated
-    })
+  const handleRemoveEmployeeFromGroup = async (employeeId: string, groupId: SleepGroup) => {
+    if (!isEditable) return
+    try {
+      await removeEmployeeFromGroupAction(selectedDate, employeeId, groupId)
+      // データを再取得
+      const updated = await getScheduleDayAction(selectedDate)
+      setSchedule(updated)
+    } catch (error) {
+      console.error('職員の削除に失敗しました:', error)
+    }
   }
 
   // 特別休暇を追加
-  const handleAddSpecialLeave = (
+  const handleAddSpecialLeave = async (
     employeeId: string,
     type: SpecialLeaveType,
     startDate: string,
@@ -142,63 +139,98 @@ export default function SchedulePage() {
     endDate: string,
     endTime: string
   ) => {
-    // 分単位に変換
-    const startMinutes = convertToMinutes(startDate, startTime, selectedDate)
-    const endMinutes = convertToMinutes(endDate, endTime, selectedDate)
-
-    const newLeave: SpecialLeave = {
-      id: Date.now().toString(),
-      employeeId,
-      type,
-      baseDate: selectedDate,
-      startDate,
-      startTime,
-      startMinutes,
-      endDate,
-      endTime,
-      endMinutes
+    if (!isEditable) return
+    try {
+      await addSpecialLeaveAction(selectedDate, employeeId, type, startDate, startTime, endDate, endTime)
+      // データを再取得
+      const updated = await getScheduleDayAction(selectedDate)
+      setSchedule(updated)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '特別休暇の追加に失敗しました')
     }
-    setSchedule(prev => {
-      const updated = {
-        ...prev,
-        specialLeaves: [...prev.specialLeaves, newLeave]
-      }
-      saveSchedule(selectedDate, updated)
-      return updated
-    })
   }
 
   // 特別休暇を削除
-  const handleRemoveSpecialLeave = (leaveId: string) => {
-    setSchedule(prev => {
-      const updated = {
-        ...prev,
-        specialLeaves: prev.specialLeaves.filter(leave => leave.id !== leaveId)
-      }
-      saveSchedule(selectedDate, updated)
-      return updated
-    })
+  const handleRemoveSpecialLeave = async (leaveId: string) => {
+    if (!isEditable) return
+    try {
+      await removeSpecialLeaveAction(selectedDate, leaveId)
+      // データを再取得
+      const updated = await getScheduleDayAction(selectedDate)
+      setSchedule(updated)
+    } catch (error) {
+      console.error('特別休暇の削除に失敗しました:', error)
+    }
   }
 
   // 日付変更時
   useEffect(() => {
-    const saved = loadSchedule(selectedDate)
-    if (saved) {
-      setSchedule(saved)
-    } else {
-      setSchedule({
-        date: selectedDate,
-        sleepGroups: {
-          group1: [],
-          group2: [],
-          group3: [],
-          group4: [],
-          weekend: []
-        },
-        specialLeaves: []
-      })
+    const loadScheduleData = async () => {
+      try {
+        const scheduleData = await getScheduleDayAction(selectedDate)
+        setSchedule(scheduleData as WorkScheduleDay)
+      } catch (error) {
+        console.error('勤務表の読み込みに失敗しました:', error)
+        // エラー時は初期値を設定
+        setSchedule({
+          date: selectedDate,
+          sleepGroups: {
+            group1: [],
+            group2: [],
+            group3: [],
+            group4: [],
+            weekend: []
+          },
+          specialLeaves: [],
+          status: '未承認',
+          hasEverCancelled: false
+        })
+      }
     }
+    loadScheduleData()
   }, [selectedDate])
+
+  // 確定承認依頼
+  const handleRequestApproval = async () => {
+    if (schedule.status !== '未承認' && schedule.status !== '修正中') return
+    if (currentUserRole !== '一般' && currentUserRole !== '承認者' && currentUserRole !== '管理者') return
+    try {
+      await updateScheduleStatusAction(selectedDate, '承認依頼中')
+      const updated = await getScheduleDayAction(selectedDate)
+      setSchedule(updated as WorkScheduleDay)
+    } catch (error) {
+      console.error('確定承認依頼に失敗しました:', error)
+    }
+  }
+
+  // 勤務表の承認・確定
+  const handleConfirmSchedule = async () => {
+    if (currentUserRole !== '承認者' && currentUserRole !== '管理者') return
+    if (schedule.status !== '承認依頼中') return
+
+    const nextStatus: WorkScheduleStatus = schedule.hasEverCancelled ? '修正済' : '確定'
+    try {
+      await updateScheduleStatusAction(selectedDate, nextStatus)
+      const updated = await getScheduleDayAction(selectedDate)
+      setSchedule(updated as WorkScheduleDay)
+    } catch (error) {
+      console.error('勤務表の承認・確定に失敗しました:', error)
+    }
+  }
+
+  // 確定取り消し
+  const handleCancelConfirmation = async () => {
+    if (currentUserRole !== '管理者') return
+    if (schedule.status !== '確定' && schedule.status !== '修正済') return
+
+    try {
+      await updateScheduleStatusAction(selectedDate, '修正中', { markCancelled: true })
+      const updated = await getScheduleDayAction(selectedDate)
+      setSchedule(updated as WorkScheduleDay)
+    } catch (error) {
+      console.error('確定取り消しに失敗しました:', error)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -211,7 +243,18 @@ export default function SchedulePage() {
             ← ダッシュボードに戻る
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">勤務表</h1>
-          <div></div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-700">現在の役割</span>
+            <select
+              value={currentUserRole}
+              onChange={(e) => setCurrentUserRole(e.target.value as UserRole)}
+              className="px-3 py-1 border border-gray-300 rounded text-sm"
+            >
+              <option value="一般">一般</option>
+              <option value="承認者">承認者</option>
+              <option value="管理者">管理者</option>
+            </select>
+          </div>
         </div>
 
         {/* 日付選択 */}
@@ -241,6 +284,65 @@ export default function SchedulePage() {
           </div>
         </div>
 
+        {/* 勤務表の状態と操作 */}
+        <div className="mb-4 bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="text-sm text-gray-600">勤務表の状態</div>
+            <div className="mt-1 text-lg font-semibold">
+              {schedule.status}
+            </div>
+            {(!isEditable) && (
+              <div className="mt-1 text-xs text-red-600">
+                この状態では勤務表の編集はできません。
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleRequestApproval}
+              disabled={
+                !(
+                  (schedule.status === '未承認' || schedule.status === '修正中') &&
+                  (currentUserRole === '一般' || currentUserRole === '承認者' || currentUserRole === '管理者')
+                )
+              }
+              className={`px-3 py-2 rounded text-sm ${
+                (schedule.status === '未承認' || schedule.status === '修正中') &&
+                (currentUserRole === '一般' || currentUserRole === '承認者' || currentUserRole === '管理者')
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-blue-200 text-blue-700 cursor-not-allowed'
+              }`}
+            >
+              確定承認依頼
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmSchedule}
+              disabled={!(schedule.status === '承認依頼中' && (currentUserRole === '承認者' || currentUserRole === '管理者'))}
+              className={`px-3 py-2 rounded text-sm ${
+                schedule.status === '承認依頼中' && (currentUserRole === '承認者' || currentUserRole === '管理者')
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-green-200 text-green-700 cursor-not-allowed'
+              }`}
+            >
+              勤務表を承認・確定
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelConfirmation}
+              disabled={!(currentUserRole === '管理者' && (schedule.status === '確定' || schedule.status === '修正済'))}
+              className={`px-3 py-2 rounded text-sm ${
+                currentUserRole === '管理者' && (schedule.status === '確定' || schedule.status === '修正済')
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-red-200 text-red-700 cursor-not-allowed'
+              }`}
+            >
+              確定を取り消し
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* 左側: 職員リスト */}
           <div className="lg:col-span-1">
@@ -262,9 +364,6 @@ export default function SchedulePage() {
               </div>
               <EmployeeList
                 employees={availableEmployees}
-                onDragStart={(employeeId) => {
-                  // ドラッグデータを設定（ブラウザの標準機能では実装が難しいため、別のアプローチを取る）
-                }}
               />
             </div>
           </div>
@@ -279,6 +378,7 @@ export default function SchedulePage() {
                 sleepGroups={SLEEP_GROUPS}
                 onAddEmployee={handleAddEmployeeToGroup}
                 onRemoveEmployee={handleRemoveEmployeeFromGroup}
+                isEditable={isEditable}
               />
             </div>
 

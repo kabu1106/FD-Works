@@ -10,6 +10,7 @@ interface ScheduleTableProps {
   sleepGroups: { [key in SleepGroup]: { label: string; timeRanges: string[] } }
   onAddEmployee: (employeeId: string, groupId: SleepGroup) => void
   onRemoveEmployee: (employeeId: string, groupId: SleepGroup) => void
+  isEditable: boolean
 }
 
 export default function ScheduleTable({
@@ -17,34 +18,24 @@ export default function ScheduleTable({
   employees,
   sleepGroups,
   onAddEmployee,
-  onRemoveEmployee
+  onRemoveEmployee,
+  isEditable
 }: ScheduleTableProps) {
   const [selectedGroup, setSelectedGroup] = useState<SleepGroup | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  const handleDrop = (e: React.DragEvent, groupId: SleepGroup) => {
-    e.preventDefault()
-    const employeeId = e.dataTransfer.getData('employeeId')
-    if (employeeId) {
-      onAddEmployee(employeeId, groupId)
-    }
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-  }
-
   const handleClick = (groupId: SleepGroup) => {
-    // スマートフォン対応: タップで職員選択モーダルを開く
-    if (window.innerWidth <= 768) {
-      setSelectedGroup(groupId)
-      setIsModalOpen(true)
-    }
+    if (!isEditable) return
+    // 列（またはカード）をクリックして職員選択モーダルを開く
+    setSelectedGroup(groupId)
+    setIsModalOpen(true)
   }
 
-  const handleEmployeeSelect = (employeeId: string) => {
+  const handleEmployeeSelect = (employeeIds: string[]) => {
     if (selectedGroup) {
-      onAddEmployee(employeeId, selectedGroup)
+      employeeIds.forEach(employeeId => {
+        onAddEmployee(employeeId, selectedGroup)
+      })
     }
     setIsModalOpen(false)
     setSelectedGroup(null)
@@ -78,9 +69,7 @@ export default function ScheduleTable({
               {(['group1', 'group2', 'group3', 'group4', 'weekend'] as SleepGroup[]).map(groupId => (
                 <td
                   key={groupId}
-                  className="px-4 py-4 cursor-pointer w-1/5"
-                  onDrop={(e) => handleDrop(e, groupId)}
-                  onDragOver={handleDragOver}
+                  className={`px-4 py-4 w-1/5 ${isEditable ? 'cursor-pointer' : 'cursor-not-allowed bg-gray-50'}`}
                   onClick={() => handleClick(groupId)}
                   style={{ minHeight: '200px' }}
                 >
@@ -97,9 +86,14 @@ export default function ScheduleTable({
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
+                              if (!isEditable) return
                               onRemoveEmployee(employeeId, groupId)
                             }}
-                            className="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                            className={`ml-2 px-2 py-1 text-xs rounded ${
+                              isEditable
+                                ? 'bg-red-500 text-white hover:bg-red-600'
+                                : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                            }`}
                           >
                             削除
                           </button>
@@ -108,7 +102,7 @@ export default function ScheduleTable({
                     })}
                     {schedule.sleepGroups[groupId].length === 0 && (
                       <div className="text-gray-400 text-sm text-center py-4">
-                        ドラッグ&ドロップで職員を追加
+                        {isEditable ? 'クリックして職員を追加' : '編集不可の状態です'}
                       </div>
                     )}
                   </div>
@@ -123,9 +117,9 @@ export default function ScheduleTable({
           {(['group1', 'group2', 'group3', 'group4', 'weekend'] as SleepGroup[]).map(groupId => (
             <div
               key={groupId}
-              className="border border-gray-200 rounded-lg p-4"
-              onDrop={(e) => handleDrop(e, groupId)}
-              onDragOver={handleDragOver}
+              className={`border border-gray-200 rounded-lg p-4 ${
+                isEditable ? 'cursor-pointer' : 'cursor-not-allowed bg-gray-50'
+              }`}
               onClick={() => handleClick(groupId)}
             >
               <h3 className="text-sm font-medium text-gray-700 mb-3 text-center">
@@ -159,7 +153,7 @@ export default function ScheduleTable({
                 })}
                 {schedule.sleepGroups[groupId].length === 0 && (
                   <div className="text-gray-400 text-sm text-center py-4">
-                    タップして職員を追加
+                    {isEditable ? 'タップして職員を追加' : '編集不可の状態です'}
                   </div>
                 )}
               </div>
@@ -170,7 +164,7 @@ export default function ScheduleTable({
       <EmployeeSelectModal
         isOpen={isModalOpen}
         employees={employees.filter(e => !Object.values(schedule.sleepGroups).flat().includes(e.id))}
-        onSelect={handleEmployeeSelect}
+        onConfirm={handleEmployeeSelect}
         onClose={() => {
           setIsModalOpen(false)
           setSelectedGroup(null)

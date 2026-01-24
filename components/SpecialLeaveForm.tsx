@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { Employee, SpecialLeaveType, SpecialLeave } from '@/types'
-import { validateDateTimeRange, convertToMinutes, isTimeRangeOverlapping } from '@/lib/timeUtils'
+import { validateDateTimeRange } from '@/lib/schedule/datetime'
+import { TimeRange } from '@/lib/datetime/range'
+import { convertToMinutes } from '@/lib/schedule/datetime'
 
 interface SpecialLeaveFormProps {
   employees: Employee[]
@@ -73,8 +75,10 @@ export default function SpecialLeaveForm({ employees, leaveTypes, currentDate, e
     // 分単位に変換（現在の選択日付を基準に）
     const newStartMinutes = convertToMinutes(startDate, startTime, currentDate)
     const newEndMinutes = convertToMinutes(endDate, endTime, currentDate)
+    const newLeaveRange = new TimeRange(newStartMinutes, newEndMinutes)
 
     // 同一職員の既存の休暇と重複していないかチェック
+    // Django設計思想: 「判定は計算によって導出する」「純粋関数化」
     const overlappingLeave = existingLeaves.find(leave => {
       if (leave.employeeId !== selectedEmployeeId) {
         return false
@@ -84,13 +88,10 @@ export default function SpecialLeaveForm({ employees, leaveTypes, currentDate, e
       // 既存の休暇の日付・時刻を新しい休暇のbaseDate（currentDate）を基準に再計算
       const existingStartMinutes = convertToMinutes(leave.startDate, leave.startTime, currentDate)
       const existingEndMinutes = convertToMinutes(leave.endDate, leave.endTime, currentDate)
+      const existingLeaveRange = new TimeRange(existingStartMinutes, existingEndMinutes)
       
-      return isTimeRangeOverlapping(
-        newStartMinutes,
-        newEndMinutes,
-        existingStartMinutes,
-        existingEndMinutes
-      )
+      // 時間区間の重なりを判定（純粋関数）
+      return newLeaveRange.overlaps(existingLeaveRange)
     })
 
     if (overlappingLeave) {

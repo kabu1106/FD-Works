@@ -36,6 +36,12 @@ export interface SpecialLeave {
   endMinutes: number // 分単位（データベース登録用）
 }
 
+// ユーザーの役割
+export type UserRole = '一般' | '承認者' | '管理者'
+
+// 勤務表の状態
+export type WorkScheduleStatus = '未承認' | '承認依頼中' | '確定' | '修正済' | '修正中'
+
 // 勤務表の1日のデータ
 export interface WorkScheduleDay {
   date: string // YYYY-MM-DD形式
@@ -43,6 +49,9 @@ export interface WorkScheduleDay {
     [key in SleepGroup]: string[] // 職員IDの配列
   }
   specialLeaves: SpecialLeave[]
+  status: WorkScheduleStatus
+  // 一度でも確定が取り消されたことがあるかどうか
+  hasEverCancelled?: boolean
 }
 
 // 勤務表全体

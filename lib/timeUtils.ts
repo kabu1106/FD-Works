@@ -131,36 +131,65 @@ export function validateDateTimeRange(
   return { valid: true }
 }
 
+// 時間区間の基本構造（Django設計思想に基づく）
+export class TimeRange {
+  start: number
+  end: number
+
+  constructor(start: number, end: number) {
+    this.start = start
+    this.end = end
+  }
+
+  // 2つの時間区間が重複しているかチェック
+  overlaps(other: TimeRange): boolean {
+    // 期間1: [this.start, this.end]
+    // 期間2: [other.start, other.end]
+    // 重複している場合: this.start <= other.end && other.start <= this.end
+    return this.start < other.end && other.start < this.end
+  }
+
+  // 重複している分数を計算
+  overlapMinutes(other: TimeRange): number {
+    if (!this.overlaps(other)) {
+      return 0
+    }
+    const overlapStart = Math.max(this.start, other.start)
+    const overlapEnd = Math.min(this.end, other.end)
+    return Math.max(0, overlapEnd - overlapStart)
+  }
+}
+
 // 入力された日付と時刻を分単位に変換
-// ("入力された日付" - "選択された日付") * 24 * 60 + hh * 60 + mm
+// 仕様: ("入力された日付" - "選択された日付") * 24 * 60 + hh * 60 + mm
 export function convertToMinutes(
   inputDate: string,
   inputTime: string,
   baseDate: string
 ): number {
-  const inputDateTime = new Date(`${inputDate}T${inputTime}:00`)
-  const baseDateTime = new Date(`${baseDate}T00:00:00`)
-  
-  // 日付の差を分に変換
-  const dateDiffMs = inputDateTime.getTime() - baseDateTime.getTime()
-  const dateDiffMinutes = Math.floor(dateDiffMs / (1000 * 60))
+  // 日付の差を計算（日数）
+  const baseDateObj = new Date(baseDate + 'T00:00:00')
+  const inputDateObj = new Date(inputDate + 'T00:00:00')
+  const dateDiffMs = inputDateObj.getTime() - baseDateObj.getTime()
+  const dateDiffDays = Math.floor(dateDiffMs / (1000 * 60 * 60 * 24))
   
   // 時刻を分に変換
   const [hours, minutes] = inputTime.split(':').map(Number)
   const timeMinutes = hours * 60 + minutes
   
-  return dateDiffMinutes + timeMinutes
+  // ("入力された日付" - "選択された日付") * 24 * 60 + hh * 60 + mm
+  return dateDiffDays * 24 * 60 + timeMinutes
 }
 
 // 2つの期間が重複しているかチェック（分単位で比較）
+// 後方互換性のため残す（TimeRangeクラスを使用することを推奨）
 export function isTimeRangeOverlapping(
   startMinutes1: number,
   endMinutes1: number,
   startMinutes2: number,
   endMinutes2: number
 ): boolean {
-  // 期間1: [startMinutes1, endMinutes1]
-  // 期間2: [startMinutes2, endMinutes2]
-  // 重複している場合: startMinutes1 <= endMinutes2 && startMinutes2 <= endMinutes1
-  return startMinutes1 <= endMinutes2 && startMinutes2 <= endMinutes1
+  const range1 = new TimeRange(startMinutes1, endMinutes1)
+  const range2 = new TimeRange(startMinutes2, endMinutes2)
+  return range1.overlaps(range2)
 }
