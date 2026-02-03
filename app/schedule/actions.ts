@@ -1,88 +1,154 @@
 'use server'
 
-/**
- * Server Actions
- * クライアントコンポーネントから呼び出されるサーバー側のアクション
- */
-
-import { getOrCreateScheduleDay, saveSchedule, updateScheduleDayStatus } from '@/lib/schedule/service'
-import { addEmployeeToSleepGroup, removeEmployeeFromSleepGroup, addSpecialLeave, removeSpecialLeave } from '@/lib/schedule/service'
-import { WorkScheduleStatus } from '@/types'
-import { domainToUI } from '@/lib/schedule/adapter'
+import { prisma as db } from '../../lib/db/prisma'
 import { revalidatePath } from 'next/cache'
+import { ScheduleStatus } from '@prisma/client'
+import { normalizeDateToJST } from '@/lib/timeUtils'
 
 /**
  * 勤務表の1日を取得
  */
-export async function getScheduleDayAction(date: string) {
-  const scheduleDay = await getOrCreateScheduleDay(date)
-  return domainToUI(scheduleDay)
+export async function getScheduleDayAction(dateString: string) {
+  const date = normalizeDateToJST(dateString)
+
+  const scheduleDay = await db.scheduleDay.upsert({
+    where: { date },
+    update: {},
+    create: {
+      date,
+      status: 'UNAPPROVED',
+      shifttype: 'DUTY24',
+    },
+    include: {
+      workGroupAssignments: {
+        include: {
+          staff: true,
+          workGroup: true,
+        },
+      },
+      specialLeaves: true,
+    },
+  })
+
+  return scheduleDay
 }
 
 /**
- * 職員を仮眠時間グループに追加
+ * 職員を仮眠グループに追加
  */
 export async function addEmployeeToGroupAction(
-  date: string,
-  employeeId: string,
-  sleepGroup: string
+  dateString: string,
+  staffNo: string,
+  workGroupId: number
 ) {
-  const scheduleDay = await getOrCreateScheduleDay(date)
-  const updated = addEmployeeToSleepGroup(scheduleDay, employeeId, sleepGroup)
-  await saveSchedule(updated)
-  revalidatePath(`/schedule`)
+  const date = normalizeDateToJST(dateString)
+
+  const day = await db.scheduleDay.upsert({
+    where: { date },
+    update: {},
+    create: { date },
+  })
+
+  await db.workGroupAssignment.upsert({
+    where: {
+      scheduleDayId_staffNo: {
+        scheduleDayId: day.id,
+        staffNo,
+      },
+    },
+    update: {
+      workGroupId,
+    },
+    create: {
+      scheduleDayId: day.id,
+      staffNo,
+      workGroupId,
+    },
+  })
+
+  revalidatePath('/schedule')
+  return { success: true }
 }
 
 /**
- * 職員を仮眠時間グループから削除
+ * 職員を仮眠グループから削除
  */
 export async function removeEmployeeFromGroupAction(
-  date: string,
-  employeeId: string,
-  sleepGroup: string
+  assignmentId: string
 ) {
-  const scheduleDay = await getOrCreateScheduleDay(date)
-  const updated = removeEmployeeFromSleepGroup(scheduleDay, employeeId, sleepGroup)
-  await saveSchedule(updated)
-  revalidatePath(`/schedule`)
+  await db.workGroupAssignment.delete({
+    where: { id: assignmentId },
+  })
+
+  revalidatePath('/schedule')
+  return { success: true }
 }
 
 /**
  * 特別休暇を追加
  */
-export async function addSpecialLeaveAction(
-  date: string,
-  employeeId: string,
-  type: string,
-  startDate: string,
-  startTime: string,
-  endDate: string,
-  endTime: string
-) {
-  const scheduleDay = await getOrCreateScheduleDay(date)
-  const updated = addSpecialLeave(scheduleDay, employeeId, type, startDate, startTime, endDate, endTime)
-  await saveSchedule(updated)
-  revalidatePath(`/schedule`)
-}
+export async function addSpecialLeaveAction(formData: {
+  dateString: string
+  staffNo: string
+  type: string
+  baseDate: Date
+  startTime: Date
+  endTime: Date
+}) {
+  const date = normalizeDateToJST(formData.dateString)
 
-/**
- * 特別休暇を削除
- */
-export async function removeSpecialLeaveAction(date: string, leaveId: string) {
-  const scheduleDay = await getOrCreateScheduleDay(date)
-  const updated = removeSpecialLeave(scheduleDay, leaveId)
-  await saveSchedule(updated)
-  revalidatePath(`/schedule`)
+  const day = await db.scheduleDay.upsert({
+    where: { date },
+    update: {},
+    create: { date },
+  })
+
+  await db.specialLeave.create({
+    data: {
+      scheduleDayId: day.id,
+      staffNo: formData.staffNo,
+      type: formData.type,
+      baseDate: formData.baseDate,
+      startTime: formData.startTime,
+      endTime: formData.endTime,
+    },
+  })
+
+  revalidatePath('/schedule')
+  return { success: true }
 }
 
 /**
  * 勤務表の状態を更新
  */
 export async function updateScheduleStatusAction(
-  date: string,
-  status: WorkScheduleStatus,
+  dateString: string,
+  status: ScheduleStatus,
   options?: { markCancelled?: boolean }
 ) {
-  await updateScheduleDayStatus(date, status, options)
-  revalidatePath(`/schedule`)
+  const date = normalizeDateToJST(dateString)
+  await db.scheduleDay.update({
+    where: { date },
+    data: {
+      status,
+      hasEverCancelled: options?.markCancelled ?? undefined,
+    },
+  })
+
+  revalidatePath('/schedule')
+  return { success: true }
 }
+
+/** 
+ * 特別休暇を取消（削除）する
+ */
+export async function removeSpecialLeaveAction(specialLeaveId: string) {
+  await db.specialLeave.delete({
+    where: { id: specialLeaveId },
+  })
+
+  revalidatePath('/schedule')
+  return { success: true }
+}
+
+

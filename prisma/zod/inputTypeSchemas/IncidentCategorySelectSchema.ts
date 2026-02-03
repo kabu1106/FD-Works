@@ -1,0 +1,19 @@
+import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
+import { IncidentTypeFindManyArgsSchema } from "../outputTypeSchemas/IncidentTypeFindManyArgsSchema"
+import { IncidentFindManyArgsSchema } from "../outputTypeSchemas/IncidentFindManyArgsSchema"
+import { IncidentCategoryCountOutputTypeArgsSchema } from "../outputTypeSchemas/IncidentCategoryCountOutputTypeArgsSchema"
+
+export const IncidentCategorySelectSchema: z.ZodType<Prisma.IncidentCategorySelect> = z.object({
+  id: z.boolean().optional(),
+  code: z.boolean().optional(),
+  name: z.boolean().optional(),
+  color: z.boolean().optional(),
+  sortOrder: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  types: z.union([z.boolean(),z.lazy(() => IncidentTypeFindManyArgsSchema)]).optional(),
+  Incident: z.union([z.boolean(),z.lazy(() => IncidentFindManyArgsSchema)]).optional(),
+  _count: z.union([z.boolean(),z.lazy(() => IncidentCategoryCountOutputTypeArgsSchema)]).optional(),
+}).strict()
+
+export default IncidentCategorySelectSchema;

@@ -1,0 +1,28 @@
+import type { Prisma } from '@prisma/client';
+
+import { z } from 'zod';
+import { ScheduleStatusSchema } from './ScheduleStatusSchema';
+import { SpecialLeaveAssignmentUncheckedCreateNestedManyWithoutDutyInputSchema } from './SpecialLeaveAssignmentUncheckedCreateNestedManyWithoutDutyInputSchema';
+import { IncidentUncheckedCreateNestedManyWithoutDutyInputSchema } from './IncidentUncheckedCreateNestedManyWithoutDutyInputSchema';
+import { AttendanceUncheckedCreateNestedManyWithoutDutyInputSchema } from './AttendanceUncheckedCreateNestedManyWithoutDutyInputSchema';
+import { OvertimeSummaryUncheckedCreateNestedManyWithoutDutyInputSchema } from './OvertimeSummaryUncheckedCreateNestedManyWithoutDutyInputSchema';
+
+export const DutyUncheckedCreateWithoutWorkGroupAssignmentsInputSchema: z.ZodType<Prisma.DutyUncheckedCreateWithoutWorkGroupAssignmentsInput> = z.strictObject({
+  id: z.string().optional(),
+  date: z.coerce.date(),
+  teamId: z.number().int(),
+  status: z.lazy(() => ScheduleStatusSchema).optional(),
+  memo: z.string().optional(),
+  isLocked: z.boolean().optional(),
+  lockedAt: z.coerce.date().optional().nullable(),
+  lockedByUserId: z.string().optional().nullable(),
+  hasEverCancelled: z.boolean().optional(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  specialLeaveAssignments: z.lazy(() => SpecialLeaveAssignmentUncheckedCreateNestedManyWithoutDutyInputSchema).optional(),
+  incidents: z.lazy(() => IncidentUncheckedCreateNestedManyWithoutDutyInputSchema).optional(),
+  attendance: z.lazy(() => AttendanceUncheckedCreateNestedManyWithoutDutyInputSchema).optional(),
+  OvertimeSummary: z.lazy(() => OvertimeSummaryUncheckedCreateNestedManyWithoutDutyInputSchema).optional(),
+});
+
+export default DutyUncheckedCreateWithoutWorkGroupAssignmentsInputSchema;

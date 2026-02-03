@@ -1,60 +1,113 @@
-// 職員
-export interface Employee {
+/* =========================
+ * Master / Organization
+ * ========================= */
+
+// 所属（Department）
+export interface Department {
+  id: number
+  code: string
+  name: string
+}
+
+// 職員（Staff）
+export interface Staff {
+  id: number
+  staffNo: string          // 職員番号（業務キー）
+  name: string
+  isActive: boolean
+  photoKey?: string | null
+  department: Department
+}
+
+
+/* =========================
+ * User / Auth
+ * ========================= */
+
+// Prisma enum UserRole に対応
+export type UserRole = 'ADMINISTRATOR' | 'APPROVER' | 'GENERAL'
+
+
+/* =========================
+ * Work Group
+ * ========================= */
+
+// 仮眠グループ
+export interface WorkGroup {
+  id: number
+  code: string   // 例: "G1", "WEEKEND"
+  name: string
+  slots: WorkSlot[]
+}
+
+// 仮眠時間スロット
+export interface WorkSlot {
+  id: number
+  startMinute: number // 0–1440
+  endMinute: number   // 0–1440
+}
+
+// 仮眠割当（1日×職員）
+export interface WorkGroupAssignment {
   id: string
-  employeeNumber: string // 職員番号
-  name: string // 名前
-  department: string // 所属
+  staffNo: string
+  workGroup: WorkGroup
 }
 
-// 所属
-export type Department = string
 
-// 仮眠時間グループ
-export type SleepGroup = 'group1' | 'group2' | 'group3' | 'group4' | 'weekend'
+/* =========================
+ * Schedule / Work
+ * ========================= */
 
-// 仮眠時間グループの定義
-export interface SleepGroupDefinition {
-  id: SleepGroup
-  label: string
-  timeRanges: string[]
+// Prisma enum ScheduleStatus に対応
+export type ScheduleStatus = 'UNAPPROVED' | 'APPROVED' | 'PENDING'
+
+// Prisma enum ShiftType に対応
+export type ShiftType = 'DUTY24' | 'DAY'
+
+// 勤務表（1日）
+export interface ScheduleDay {
+  id: string
+  date: string              // YYYY-MM-DD
+  shiftType: ShiftType
+  status: ScheduleStatus
+  hasEverCancelled: boolean
+
+  workGroupAssignments: WorkGroupAssignment[]
+  specialLeaveAssignments: SpecialLeaveAssignment[]
 }
 
-// 特別休暇種別
-export type SpecialLeaveType = '年次休暇' | '夏季休暇' | '慶弔休暇' | 'その他'
+
+/* =========================
+ * Special Leave
+ * ========================= */
 
 // 特別休暇
-export interface SpecialLeave {
+export interface SpecialLeaveAssignment {
   id: string
-  employeeId: string
-  type: SpecialLeaveType
-  baseDate: string // 選択された日付（YYYY-MM-DD形式）
-  startDate: string // YYYY-MM-DD形式
-  startTime: string // HH:mm形式（24:00表記、例: "8:30", "24:00"）
-  startMinutes: number // 分単位（データベース登録用）
-  endDate: string // YYYY-MM-DD形式
-  endTime: string // HH:mm形式（24:00表記、例: "17:00", "24:00"）
-  endMinutes: number // 分単位（データベース登録用）
+  staffNo: string
+
+  baseDate: string          // YYYY-MM-DD
+  startTime: string         // ISO DateTime
+  endTime: string           // ISO DateTime
+
+  specialLeaveType: SpecialLeaveType
 }
 
-// ユーザーの役割
-export type UserRole = '一般' | '承認者' | '管理者'
 
-// 勤務表の状態
-export type WorkScheduleStatus = '未承認' | '承認依頼中' | '確定' | '修正済' | '修正中'
-
-// 勤務表の1日のデータ
-export interface WorkScheduleDay {
-  date: string // YYYY-MM-DD形式
-  sleepGroups: {
-    [key in SleepGroup]: string[] // 職員IDの配列
-  }
-  specialLeaves: SpecialLeave[]
-  status: WorkScheduleStatus
-  // 一度でも確定が取り消されたことがあるかどうか
-  hasEverCancelled?: boolean
+export interface SpecialLeaveType {
+  id: string
+  code: string
+  name: string
+  isActive: boolean
+  specialLeaveGroup: SpecialLeaveGroup
 }
 
-// 勤務表全体
-export interface WorkSchedule {
-  [date: string]: WorkScheduleDay
+
+export interface SpecialLeaveGroup {
+  id: string
+  name: string
+  color: string
+  isActive: boolean
+  sortOrder: number
 }

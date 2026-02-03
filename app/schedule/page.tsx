@@ -5,13 +5,16 @@ import Link from 'next/link'
 import { format, addDays, subDays } from 'date-fns'
 import ja from 'date-fns/locale/ja'
 import {
-  Employee,
-  SleepGroup,
-  WorkScheduleDay,
-  SpecialLeave,
-  SpecialLeaveType,
+  Department,
+  Staff,
   UserRole,
-  WorkScheduleStatus
+  SleepGroup,
+  SleepSlot,
+  SleepGroupAssignment,
+  ScheduleStatus,
+  ShiftType,
+  ScheduleDay,
+  SpecialLeaveAssignment,
 } from '@/types'
 import ScheduleTable from '@/components/ScheduleTable'
 import EmployeeList from '@/components/EmployeeList'
@@ -26,7 +29,7 @@ import {
 } from './actions'
 
 // 仮眠時間グループの定義
-const SLEEP_GROUPS: { [key in SleepGroup]: { label: string; timeRanges: string[] } } = {
+const SLEEP_GROUPS: { [key in SleepGroup["id"]]: { label: string; timeRanges: string[] } } = {
   group1: {
     label: '[1番起]24:00〜30:45',
     timeRanges: ['24:00〜30:45']

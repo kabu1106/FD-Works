@@ -1,0 +1,48 @@
+import type { Prisma } from '@prisma/client';
+
+import { z } from 'zod';
+import { IncidentWhereInputSchema } from './IncidentWhereInputSchema';
+import { StringFilterSchema } from './StringFilterSchema';
+import { IntFilterSchema } from './IntFilterSchema';
+import { IntNullableFilterSchema } from './IntNullableFilterSchema';
+import { StringNullableFilterSchema } from './StringNullableFilterSchema';
+import { BoolFilterSchema } from './BoolFilterSchema';
+import { DateTimeFilterSchema } from './DateTimeFilterSchema';
+import { DutyRelationFilterSchema } from './DutyRelationFilterSchema';
+import { DutyWhereInputSchema } from './DutyWhereInputSchema';
+import { IncidentCategoryRelationFilterSchema } from './IncidentCategoryRelationFilterSchema';
+import { IncidentCategoryWhereInputSchema } from './IncidentCategoryWhereInputSchema';
+import { IncidentTypeRelationFilterSchema } from './IncidentTypeRelationFilterSchema';
+import { IncidentTypeWhereInputSchema } from './IncidentTypeWhereInputSchema';
+import { LocationRelationFilterSchema } from './LocationRelationFilterSchema';
+import { LocationWhereInputSchema } from './LocationWhereInputSchema';
+import { HospitalNullableRelationFilterSchema } from './HospitalNullableRelationFilterSchema';
+import { HospitalWhereInputSchema } from './HospitalWhereInputSchema';
+import { IncidentVehicleListRelationFilterSchema } from './IncidentVehicleListRelationFilterSchema';
+
+export const IncidentWhereUniqueInputSchema: z.ZodType<Prisma.IncidentWhereUniqueInput> = z.object({
+  id: z.string(),
+})
+.and(z.strictObject({
+  id: z.string().optional(),
+  AND: z.union([ z.lazy(() => IncidentWhereInputSchema), z.lazy(() => IncidentWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => IncidentWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => IncidentWhereInputSchema), z.lazy(() => IncidentWhereInputSchema).array() ]).optional(),
+  dutyId: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
+  categoryId: z.union([ z.lazy(() => IntFilterSchema), z.number().int() ]).optional(),
+  typeId: z.union([ z.lazy(() => IntFilterSchema), z.number().int() ]).optional(),
+  locationId: z.union([ z.lazy(() => IntFilterSchema), z.number().int() ]).optional(),
+  destinationId: z.union([ z.lazy(() => IntNullableFilterSchema), z.number().int() ]).optional().nullable(),
+  destinationName: z.union([ z.lazy(() => StringNullableFilterSchema), z.string() ]).optional().nullable(),
+  isDeleted: z.union([ z.lazy(() => BoolFilterSchema), z.boolean() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
+  updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
+  duty: z.union([ z.lazy(() => DutyRelationFilterSchema), z.lazy(() => DutyWhereInputSchema) ]).optional(),
+  category: z.union([ z.lazy(() => IncidentCategoryRelationFilterSchema), z.lazy(() => IncidentCategoryWhereInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => IncidentTypeRelationFilterSchema), z.lazy(() => IncidentTypeWhereInputSchema) ]).optional(),
+  location: z.union([ z.lazy(() => LocationRelationFilterSchema), z.lazy(() => LocationWhereInputSchema) ]).optional(),
+  destination: z.union([ z.lazy(() => HospitalNullableRelationFilterSchema), z.lazy(() => HospitalWhereInputSchema) ]).optional().nullable(),
+  vehicles: z.lazy(() => IncidentVehicleListRelationFilterSchema).optional(),
+}));
+
+export default IncidentWhereUniqueInputSchema;

@@ -18,12 +18,12 @@ export async function getScheduleDay(date: string): Promise<ScheduleDayDomain | 
     include: {
       sleepGroupAssignments: {
         include: {
-          employee: true,
+          staff: true,
         },
       },
       specialLeaves: {
         include: {
-          employee: true,
+          staff: true,
         },
       },
     },

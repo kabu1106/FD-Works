@@ -1,4 +1,20 @@
 /**
+ * 日付を JST 00:00 に正規化する
+ */
+export function normalizeDateToJST(input: string | Date): Date {
+  const d = typeof input === 'string' ? new Date(input) : new Date(input)
+
+  return new Date(
+    Date.UTC(
+      d.getFullYear(),
+      d.getMonth(),
+      d.getDate()
+    )
+  )
+}
+
+
+/**
  * 時間変換ユーティリティ
  * 24:00表記（表示用）と48:00形式（データベース用）の変換
  */

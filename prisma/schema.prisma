@@ -5,85 +5,618 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// 追加: Zodスキーマ生成の設定
+generator zod {
+  provider         = "zod-prisma-types"
+  output           = "./zod" // 出力先パス
+  useMultipleFiles = true // モデルごとにファイルを分割して可読性を向上
+  createInputTypes = true // Create/Update用の入力型も生成
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// 職員
-model Employee {
-  id             String   @id @default(uuid())
-  employeeNumber String   @unique @db.VarChar(50)
-  name           String   @db.VarChar(100)
-  department     String   @db.VarChar(100)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+// ---------------------------------------------------------
+// NextAuth 必要モデル群 (Prisma Adapter 用)
+// ---------------------------------------------------------
 
-  // リレーション
-  sleepGroupAssignments SleepGroupAssignment[]
-  specialLeaves         SpecialLeave[]
-
-  @@map("employees")
+enum UserRole {
+  ADMINISTRATOR
+  APPROVER
+  GENERAL
 }
 
-// 勤務表の1日のデータ
-model ScheduleDay {
-  id              String   @id @default(uuid())
-  date            DateTime @db.Date
-  status          String   @default("未承認") @db.VarChar(20)
-  hasEverCancelled Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+model User {
+  id            String    @id @default(cuid())
+  loginId       String    @unique
+  password      String?
+  name          String? // NextAuth標準: ユーザー表示名
+  email         String?   @unique // NextAuth標準: 重複チェック等に使用
+  emailVerified DateTime? // NextAuth標準: メール認証日時
+  image         String? // NextAuth標準: プロフィール画像URL
+  role          UserRole  @default(GENERAL)
 
-  // リレーション
-  sleepGroupAssignments SleepGroupAssignment[]
-  specialLeaves         SpecialLeave[]
+  staffId Int?   @unique
+  staff   Staff? @relation(fields: [staffId], references: [id])
 
-  @@unique([date])
-  @@map("schedule_days")
-  @@index([date])
+  accounts Account[]
+  sessions Session[]
 }
 
-// 仮眠時間グループへの職員配置
-model SleepGroupAssignment {
-  id            String   @id @default(uuid())
-  scheduleDayId String
-  employeeId    String
-  sleepGroup    String   @db.VarChar(20) // 'group1' | 'group2' | 'group3' | 'group4' | 'weekend'
-  createdAt     DateTime @default(now())
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
-  // リレーション
-  scheduleDay ScheduleDay @relation(fields: [scheduleDayId], references: [id], onDelete: Cascade)
-  employee    Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([scheduleDayId, employeeId, sleepGroup])
-  @@map("sleep_group_assignments")
-  @@index([scheduleDayId])
-  @@index([employeeId])
+  @@unique([provider, providerAccountId])
 }
 
-// 特別休暇
-model SpecialLeave {
-  id            String   @id @default(uuid())
-  scheduleDayId String
-  employeeId    String
-  type          String   @db.VarChar(20) // '年次休暇' | '夏季休暇' | '慶弔休暇' | 'その他'
-  baseDate      DateTime @db.Date
-  startDate     DateTime @db.Date
-  startTime     String   @db.VarChar(10) // HH:mm形式
-  startMinutes  Int      // 分単位（baseDateを基準とした分）
-  endDate       DateTime @db.Date
-  endTime       String   @db.VarChar(10) // HH:mm形式
-  endMinutes    Int      // 分単位（baseDateを基準とした分）
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// =======================
+// Master / Organization
+// =======================
+
+enum ShiftType {
+  DUTY_24H
+  DAY_SHIFT
+}
+
+model WorkShift {
+  id        Int       @id @default(autoincrement())
+  code      String    @unique @db.VarChar(20)
+  name      String    @db.VarChar(100)
+  shiftType ShiftType @default(DUTY_24H)
+  isActive  Boolean   @default(true)
+
+  teams         Team[]
+  workShiftDays WorkShiftDay[]
+}
+
+model WorkShiftDay {
+  id          String    @id @default(uuid())
+  date        DateTime  @db.Date
+  type        WorkType  @default(DUTY_24H)
+  workShiftId Int
+  workShift   WorkShift @relation(fields: [workShiftId], references: [id], onDelete: Restrict)
+
+  @@unique([date, workShiftId])
+  @@map("work_shift_days")
+}
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(100)
+  latitude  Decimal? @db.Decimal(9, 6) /// 緯度（例: 35.6895）
+  longitude Decimal? @db.Decimal(9, 6) /// 経度（例: 139.6917）
+
+  isActive Boolean @default(true)
+
+  teams      Team[]
+  vehicle    Vehicle[]
+  attendance Attendance[]
+}
+
+model Team {
+  id           Int       @id @default(autoincrement())
+  departmentId Int
+  workShiftId  Int
+  code         String    @unique @db.VarChar(20)
+  name         String    @db.VarChar(100)
+  shiftType    ShiftType @default(DUTY_24H)
+  isActive     Boolean   @default(true)
+
+  departments Department    @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  staffs      Staff[]
+  workShift   WorkShift     @relation(fields: [workShiftId], references: [id], onDelete: Restrict)
+  teamWorkDay TeamWorkDay[]
+  duties      Duty[]
+}
+
+enum WorkType {
+  DUTY_24H // 当番（24時間勤務）
+  DAY_SHIFT // 日勤の勤務日
+  OFF_DUTY // 非番（24h勤務明け）
+  DAY_OFF // 週休日
+}
+
+model TeamWorkDay {
+  id   String   @id @default(uuid())
+  date DateTime @db.Date
+  type WorkType @default(DUTY_24H)
+
+  teamId Int
+  team   Team @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  overrides TeamWorkOverride[]
+
+  @@unique([date, teamId])
+  @@map("team_work_days")
+}
+
+enum TeamWorkOverrideReason {
+  DISASTER // 災害対応
+  SPECIAL_EVENT // 特別警戒
+  STAFF_SHORTAGE // 人員不足
+  MANUAL // 手動調整
+}
+
+model TeamWorkOverride {
+  id             String                 @id @default(uuid())
+  teamWorkDayId  String
+  overriddenType WorkType
+  reason         TeamWorkOverrideReason
+  memo           String                 @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teamWorkDay TeamWorkDay @relation(fields: [teamWorkDayId], references: [id], onDelete: Cascade)
+
+  @@unique([teamWorkDayId])
+  @@index([teamWorkDayId])
+  @@map("team_work_overrides")
+}
+
+model Staff {
+  id       Int     @id @default(autoincrement())
+  staffNo  String  @unique @db.VarChar(20)
+  name     String  @db.VarChar(100)
+  isActive Boolean @default(true)
+  photoKey String? @db.VarChar(255)
+
+  teamId Int
+  team   Team @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  workGroupAssignment     WorkGroupAssignment[]
+  user                    User?
+  specialLeaveAssignments SpecialLeaveAssignment[]
+  IncidentStaff           IncidentStaff[]
+  Attendance              Attendance[]
+  OvertimeSummary         OvertimeSummary[]
+}
+
+// =======================
+// Shift / Duty
+// =======================
+
+enum ScheduleStatus {
+  UNAPPROVED // 未承認
+  APPROVED // 承認済み
+  PENDING // 保留
+}
+
+model Duty {
+  id     String         @id @default(uuid())
+  date   DateTime       @db.Date
+  teamId Int
+  status ScheduleStatus @default(UNAPPROVED)
+  memo   String         @default("")
+
+  isLocked       Boolean   @default(false) /// 承認後ロック（再計算不可）
+  lockedAt       DateTime?
+  lockedByUserId String?
+
+  hasEverCancelled Boolean  @default(false) /// 過去にキャンセルされたかどうかのフラグ
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // リレーション
-  scheduleDay ScheduleDay @relation(fields: [scheduleDayId], references: [id], onDelete: Cascade)
-  employee    Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  team                    Team                     @relation(fields: teamId, references: id, onDelete: Restrict)
+  workGroupAssignments    WorkGroupAssignment[]
+  specialLeaveAssignments SpecialLeaveAssignment[]
+  incidents               Incident[]
+  attendance              Attendance[]
+  OvertimeSummary         OvertimeSummary[]
 
+  @@unique([date, teamId])
+  @@map("duties")
+}
+
+model WorkGroupAssignment {
+  id          String   @id @default(uuid())
+  dutyId      String
+  staffId     Int
+  workGroupId Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  duty      Duty      @relation(fields: [dutyId], references: [id], onDelete: Cascade)
+  workGroup WorkGroup @relation(fields: [workGroupId], references: [id], onDelete: Restrict)
+  staff     Staff     @relation(fields: [staffId], references: [id], onDelete: Restrict) // 名前を統一
+
+  @@unique([dutyId, staffId]) // 同一日に一人のスタッフが重複して割り当てられるのを防ぐ
+  @@map("work_group_assignments")
+}
+
+model SpecialLeaveAssignment {
+  id                 String   @id @default(uuid())
+  dutyId             String
+  staffId            Int
+  specialLeaveTypeId String
+  baseDate           DateTime @db.Date
+  startTime          DateTime
+  endTime            DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  duty             Duty             @relation(fields: [dutyId], references: [id], onDelete: Cascade)
+  staff            Staff            @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  specialLeaveType SpecialLeaveType @relation(fields: [specialLeaveTypeId], references: [id], onDelete: Restrict)
+
+  @@index([dutyId])
+  @@index([staffId])
   @@map("special_leaves")
-  @@index([scheduleDayId])
-  @@index([employeeId])
-  @@index([baseDate])
+}
+
+// =======================
+// Work Definition
+// =======================
+
+model WorkGroup {
+  id   Int    @id @default(autoincrement())
+  code String @unique @db.VarChar(10)
+  name String @db.VarChar(50)
+
+  overtimeSlots       OvertimeSlot[]
+  WorkGroupAssignment WorkGroupAssignment[]
+}
+
+/// 超過勤務の時間帯ごとの倍率分類
+
+model OvertimeRateCategory {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique @db.VarChar(20)
+  name     String
+  rate     Float // 例: 1.25, 1.5 など
+  color    String? // UI表示用（任意）
+  isActive Boolean @default(true)
+
+  overtimeSlots         OvertimeSlot[]
+  OvertimeSummaryDetail OvertimeSummaryDetail[]
+}
+
+model OvertimeSlot {
+  id          Int @id @default(autoincrement())
+  workGroupId Int
+  startMinute Int
+  endMinute   Int
+
+  overtimeRateCategoryId Int?
+  overtimeRateCategory   OvertimeRateCategory? @relation(fields: [overtimeRateCategoryId], references: [id], onDelete: SetNull)
+
+  workGroup WorkGroup @relation(fields: [workGroupId], references: [id], onDelete: Restrict)
+
+  @@unique([workGroupId, startMinute, endMinute])
+  @@index([workGroupId])
+  @@index([overtimeRateCategoryId])
+}
+
+// =======================
+// SpecialLeave Definition
+// =======================
+model SpecialLeaveGroup {
+  id               String             @id @default(uuid())
+  name             String
+  color            String
+  isActive         Boolean            @default(true)
+  sortOrder        Int                @default(0)
+  SpecialLeaveType SpecialLeaveType[]
+
+  @@map("special_leave_group")
+}
+
+model SpecialLeaveType {
+  id                  String  @id @default(uuid())
+  code                String  @unique @db.VarChar(50)
+  name                String
+  specialLeaveGroupId String
+  isActive            Boolean
+
+  specialLeaveGroup       SpecialLeaveGroup        @relation(fields: specialLeaveGroupId, references: id, onDelete: Restrict)
+  specialLeaveAssignments SpecialLeaveAssignment[]
+
+  @@map("special_leave_type")
+}
+
+// =======================
+// Incident Definition
+// =======================
+
+model Incident {
+  id              String  @id @default(uuid())
+  dutyId          String
+  categoryId      Int
+  typeId          Int
+  locationId      Int
+  destinationId   Int?
+  destinationName String?
+
+  isDeleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  duty        Duty             @relation(fields: [dutyId], references: [id], onDelete: Cascade)
+  category    IncidentCategory @relation(fields: [categoryId], references: [id])
+  type        IncidentType     @relation(fields: [typeId], references: [id])
+  location    Location         @relation(fields: [locationId], references: [id])
+  destination Hospital?        @relation(fields: [destinationId], references: [id], onDelete: SetNull)
+
+  vehicles IncidentVehicle[]
+
+  @@index([dutyId])
+  @@index([createdAt])
+  @@index([isDeleted, createdAt])
+  @@index([locationId])
+  @@map("incidents")
+}
+
+model IncidentCategory {
+  id        Int     @id @default(autoincrement())
+  code      String  @unique @db.VarChar(20)
+  name      String
+  color     String
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  types    IncidentType[]
+  Incident Incident[]
+
+  @@map("incident_categories")
+}
+
+model IncidentType {
+  id         Int     @id @default(autoincrement())
+  categoryId Int
+  code       String  @db.VarChar(20)
+  name       String
+  sortOrder  Int     @default(0)
+  isActive   Boolean @default(true)
+
+  category IncidentCategory @relation(fields: [categoryId], references: [id])
+  Incident Incident[]
+
+  @@unique([categoryId, code])
+  @@index([categoryId])
+  @@map("incident_types")
+}
+
+model Vehicle {
+  id           Int     @id @default(autoincrement())
+  code         String  @unique @db.VarChar(20)
+  name         String
+  departmentId Int?
+  isActive     Boolean @default(true)
+
+  incidents  IncidentVehicle[]
+  department Department?       @relation(fields: departmentId, references: id, onDelete: SetNull)
+
+  @@map("vehicles")
+}
+
+model IncidentVehicle {
+  id           String   @id @default(uuid())
+  incidentId   String
+  vehicleId    Int
+  dispatchTime DateTime
+  returnTime   DateTime
+
+  incident      Incident        @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  vehicle       Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  IncidentStaff IncidentStaff[]
+
+  @@unique([incidentId, vehicleId])
+  @@index([incidentId])
+  @@map("incident_vehicles")
+}
+
+model IncidentStaff {
+  id                String @id @default(uuid())
+  incidentVehicleId String
+  staffId           Int
+
+  incidentVehicle IncidentVehicle @relation(fields: [incidentVehicleId], references: [id], onDelete: Cascade)
+  staff           Staff           @relation(fields: [staffId], references: [id], onDelete: Restrict)
+
+  allowances               IncidentStaffAllowance[]
+  IncidentAllowanceSummary IncidentAllowanceSummary[]
+
+  @@unique([incidentVehicleId, staffId])
+  @@map("incident_staffs")
+}
+
+model AllowanceGroup {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique @db.VarChar(20)
+  name     String
+  color    String
+  isActive Boolean @default(true)
+
+  allowanceTypes AllowanceType[]
+
+  @@map("allowance_groups")
+}
+
+model AllowanceType {
+  id               Int     @id @default(autoincrement())
+  allowanceGroupId Int
+  code             String  @unique @db.VarChar(20)
+  name             String
+  isActive         Boolean @default(true)
+
+  allowanceGroup           AllowanceGroup             @relation(fields: allowanceGroupId, references: id, onDelete: Restrict)
+  IncidentStaffAllowance   IncidentStaffAllowance[]
+  IncidentAllowanceSummary IncidentAllowanceSummary[]
+
+  @@map("allowance_types")
+}
+
+model IncidentStaffAllowance {
+  id              String @id @default(uuid())
+  incidentStaffId String
+  allowanceTypeId Int
+
+  incidentStaff IncidentStaff @relation(fields: [incidentStaffId], references: [id], onDelete: Cascade)
+  allowanceType AllowanceType @relation(fields: [allowanceTypeId], references: [id])
+
+  @@unique([incidentStaffId, allowanceTypeId])
+  @@map("incident_staff_allowances")
+}
+
+// =======================
+// Location Definition
+// =======================
+enum LocationType {
+  PREFECTURE
+  MUNICIPALITY
+  TOWN // 町
+  OAZA // 大字
+  AZA // 字
+  CHOME // 丁目
+}
+
+model Location {
+  id Int @id @default(autoincrement())
+
+  parentId Int?
+  parent   Location?  @relation("LocationTree", fields: [parentId], references: [id])
+  children Location[] @relation("LocationTree")
+
+  type LocationType
+  code String? // 市町村コードなど
+  name String
+
+  latitude  Decimal? @db.Decimal(9, 6)
+  longitude Decimal? @db.Decimal(9, 6)
+
+  incidents Incident[]
+
+  @@unique([parentId, name])
+  @@index([parentId])
+  @@index([type])
+  @@map("locations")
+}
+
+model Hospital {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String   @unique
+  latitude  Decimal? @db.Decimal(9, 6) /// 緯度（例: 35.6895）
+  longitude Decimal? @db.Decimal(9, 6) /// 経度（例: 139.6917）
+
+  destination Incident[]
+
+  @@index([latitude, longitude])
+}
+
+// =======================
+// Attendance Definition
+// =======================
+
+enum AttendanceType {
+  WORK_START
+  BREAK_START
+  BREAK_OUT
+  WORK_OUT
+}
+
+model Attendance {
+  id           String         @id @default(uuid())
+  dutyId       String
+  departmentId Int
+  staffId      Int
+  type         AttendanceType
+  startTime    DateTime
+  endTime      DateTime
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  duty       Duty       @relation(fields: dutyId, references: id, onDelete: Cascade)
+  department Department @relation(fields: departmentId, references: id, onDelete: Restrict)
+  staff      Staff      @relation(fields: staffId, references: id, onDelete: Restrict)
+}
+
+// =======================
+// Summary Definition
+// =======================
+
+model OvertimeSummary {
+  id      String @id @default(uuid())
+  dutyId  String
+  staffId Int
+
+  version      Int @default(1) /// Duty内での世代
+  totalMinutes Int
+
+  isFinalized Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  duty  Duty  @relation(fields: [dutyId], references: [id], onDelete: Cascade)
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Restrict)
+
+  details OvertimeSummaryDetail[]
+
+  @@unique([dutyId, staffId, version])
+  @@index([dutyId, version])
+}
+
+model OvertimeSummaryDetail {
+  id                     String @id @default(uuid())
+  overtimeSummaryId      String
+  overtimeRateCategoryId Int
+
+  rateSnapshot Float // 当時の倍率（例: 1.25, 1.5）
+  minutes      Int // この倍率での分数（確定値）
+
+  overtimeSummary OvertimeSummary      @relation(fields: [overtimeSummaryId], references: [id], onDelete: Cascade)
+  rateCategory    OvertimeRateCategory @relation(fields: [overtimeRateCategoryId], references: [id])
+
+  @@unique([overtimeSummaryId, overtimeRateCategoryId])
+}
+
+model IncidentAllowanceSummary {
+  id              String @id @default(uuid())
+  incidentStaffId String
+  allowanceTypeId Int
+
+  version Int @default(1)
+  count   Int @default(1)
+
+  isFinalized Boolean @default(false)
+
+  incidentStaff IncidentStaff @relation(fields: [incidentStaffId], references: [id], onDelete: Cascade)
+  allowanceType AllowanceType @relation(fields: [allowanceTypeId], references: [id])
+
+  @@unique([incidentStaffId, allowanceTypeId, version])
 }

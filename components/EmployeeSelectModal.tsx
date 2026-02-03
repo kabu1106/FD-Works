@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Employee } from '@/types'
+import { Staff } from '@/types'
 
 interface EmployeeSelectModalProps {
   isOpen: boolean

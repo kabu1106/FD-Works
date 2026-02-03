@@ -1,0 +1,24 @@
+import type { Prisma } from '@prisma/client';
+
+import { z } from 'zod';
+import { TeamCreateNestedOneWithoutStaffsInputSchema } from './TeamCreateNestedOneWithoutStaffsInputSchema';
+import { WorkGroupAssignmentCreateNestedManyWithoutStaffInputSchema } from './WorkGroupAssignmentCreateNestedManyWithoutStaffInputSchema';
+import { UserCreateNestedOneWithoutStaffInputSchema } from './UserCreateNestedOneWithoutStaffInputSchema';
+import { SpecialLeaveAssignmentCreateNestedManyWithoutStaffInputSchema } from './SpecialLeaveAssignmentCreateNestedManyWithoutStaffInputSchema';
+import { IncidentStaffCreateNestedManyWithoutStaffInputSchema } from './IncidentStaffCreateNestedManyWithoutStaffInputSchema';
+import { OvertimeSummaryCreateNestedManyWithoutStaffInputSchema } from './OvertimeSummaryCreateNestedManyWithoutStaffInputSchema';
+
+export const StaffCreateWithoutAttendanceInputSchema: z.ZodType<Prisma.StaffCreateWithoutAttendanceInput> = z.strictObject({
+  staffNo: z.string(),
+  name: z.string(),
+  isActive: z.boolean().optional(),
+  photoKey: z.string().optional().nullable(),
+  team: z.lazy(() => TeamCreateNestedOneWithoutStaffsInputSchema),
+  workGroupAssignment: z.lazy(() => WorkGroupAssignmentCreateNestedManyWithoutStaffInputSchema).optional(),
+  user: z.lazy(() => UserCreateNestedOneWithoutStaffInputSchema).optional(),
+  specialLeaveAssignments: z.lazy(() => SpecialLeaveAssignmentCreateNestedManyWithoutStaffInputSchema).optional(),
+  IncidentStaff: z.lazy(() => IncidentStaffCreateNestedManyWithoutStaffInputSchema).optional(),
+  OvertimeSummary: z.lazy(() => OvertimeSummaryCreateNestedManyWithoutStaffInputSchema).optional(),
+});
+
+export default StaffCreateWithoutAttendanceInputSchema;

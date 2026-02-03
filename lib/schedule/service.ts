@@ -190,3 +190,21 @@ export async function updateScheduleDayStatus(
   const hasEverCancelled = options?.markCancelled === true ? true : undefined
   await updateScheduleStatus(date, status, hasEverCancelled)
 }
+
+/**
+ * 勤務タイプを解決
+ * @param teamId チームID
+ * @param date 日付（YYYY-MM-DD形式）
+ * @returns 勤務タイプ
+ * 優先順位：1. オーバーライド 2. チーム勤務日 3. 勤務シフト日
+ * オーバーライドがあればそれを返す
+ * チーム勤務日があればそれを返す
+ * 勤務シフト日があればそれを返す
+ * なければDUTY_24Hを返す
+ */
+function resolveWorkType(teamId, date): WorkType {
+  const overrides = await getTeamWorkOverrides(teamId, date)
+  const teamWorkDay = await getTeamWorkDay(teamId, date)
+  const workShiftDay = await getWorkShiftDay(teamId, date)
+  return overrides.type || teamWorkDay.type || workShiftDay.type || 'DUTY_24H'
+}
