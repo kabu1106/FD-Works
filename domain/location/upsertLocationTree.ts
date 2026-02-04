@@ -53,7 +53,6 @@ export async function upsertLocationTree(row: LocationRow) {
   for (const { key, type } of levels) {
     const name = row[key]?.trim()
     if (!name) {
-      // ❌ break しない
       continue
     }
 

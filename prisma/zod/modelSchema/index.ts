@@ -1,3 +1,4 @@
+export * from './EventStoreSchema';
 export * from './UserSchema';
 export * from './AccountSchema';
 export * from './SessionSchema';

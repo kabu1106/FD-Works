@@ -19,6 +19,37 @@ datasource db {
 }
 
 // ---------------------------------------------------------
+// EventStore
+// ---------------------------------------------------------
+model EventStore {
+  id String @id @default(cuid())
+
+  // ===== Aggregate =====
+  aggregateId   String
+  aggregateType String // 'ScheduleDay' など
+
+  aggregateVersion Int // 楽観ロック用
+
+  // ===== Event =====
+  eventType String // payload.type のコピー（index用）
+  payload   Json // ドメインイベント（唯一の真実）
+
+  // ===== Metadata =====
+  occurredAt    DateTime
+  causedBy      String // commandId
+  schemaVersion Int
+
+  // ===== System =====
+  createdAt DateTime @default(now())
+
+  @@unique([aggregateId, aggregateVersion])
+  @@index([aggregateId])
+  @@index([aggregateType])
+  @@index([eventType])
+  @@index([occurredAt])
+}
+
+// ---------------------------------------------------------
 // NextAuth 必要モデル群 (Prisma Adapter 用)
 // ---------------------------------------------------------
 

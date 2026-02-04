@@ -1,113 +1,258 @@
-/* =========================
- * Master / Organization
- * ========================= */
+// =====================
+// Enums
+// =====================
 
-// 所属（Department）
-export interface Department {
-  id: number
-  code: string
-  name: string
-}
-
-// 職員（Staff）
-export interface Staff {
-  id: number
-  staffNo: string          // 職員番号（業務キー）
-  name: string
-  isActive: boolean
-  photoKey?: string | null
-  department: Department
-}
-
-
-/* =========================
- * User / Auth
- * ========================= */
-
-// Prisma enum UserRole に対応
 export type UserRole = 'ADMINISTRATOR' | 'APPROVER' | 'GENERAL'
 
+export type ShiftType = 'DUTY_24H' | 'DAY_SHIFT'
 
-/* =========================
- * Work Group
- * ========================= */
+export type WorkType =
+  | 'DUTY_24H'
+  | 'DAY_SHIFT'
+  | 'OFF_DUTY'
+  | 'DAY_OFF'
 
-// 仮眠グループ
-export interface WorkGroup {
+export type ScheduleStatus =
+  | 'UNAPPROVED'
+  | 'APPROVED'
+  | 'PENDING'
+
+export type TeamWorkOverrideReason =
+  | 'DISASTER'
+  | 'SPECIAL_EVENT'
+  | 'STAFF_SHORTAGE'
+  | 'MANUAL'
+
+export type AttendanceType =
+  | 'WORK_START'
+  | 'BREAK_START'
+  | 'BREAK_OUT'
+  | 'WORK_OUT'
+
+export type LocationType =
+  | 'PREFECTURE'
+  | 'MUNICIPALITY'
+  | 'TOWN'
+  | 'OAZA'
+  | 'AZA'
+  | 'CHOME'
+
+  // =====================
+// User / Staff
+// =====================
+
+export interface UserUI {
+  id: string
+  loginId: string
+  name?: string
+  email?: string
+  role: UserRole
+  staff?: StaffUI
+}
+
+export interface StaffUI {
   id: number
-  code: string   // 例: "G1", "WEEKEND"
+  staffNo: string
   name: string
-  slots: WorkSlot[]
+  isActive: boolean
+  photoKey?: string
+  team: {
+    id: number
+    name: string
+  }
 }
 
-// 仮眠時間スロット
-export interface WorkSlot {
+// =====================
+// Organization
+// =====================
+
+export interface DepartmentUI {
   id: number
-  startMinute: number // 0–1440
-  endMinute: number   // 0–1440
-}
-
-// 仮眠割当（1日×職員）
-export interface WorkGroupAssignment {
-  id: string
-  staffNo: string
-  workGroup: WorkGroup
-}
-
-
-/* =========================
- * Schedule / Work
- * ========================= */
-
-// Prisma enum ScheduleStatus に対応
-export type ScheduleStatus = 'UNAPPROVED' | 'APPROVED' | 'PENDING'
-
-// Prisma enum ShiftType に対応
-export type ShiftType = 'DUTY24' | 'DAY'
-
-// 勤務表（1日）
-export interface ScheduleDay {
-  id: string
-  date: string              // YYYY-MM-DD
-  shiftType: ShiftType
-  status: ScheduleStatus
-  hasEverCancelled: boolean
-
-  workGroupAssignments: WorkGroupAssignment[]
-  specialLeaveAssignments: SpecialLeaveAssignment[]
-}
-
-
-/* =========================
- * Special Leave
- * ========================= */
-
-// 特別休暇
-export interface SpecialLeaveAssignment {
-  id: string
-  staffNo: string
-
-  baseDate: string          // YYYY-MM-DD
-  startTime: string         // ISO DateTime
-  endTime: string           // ISO DateTime
-
-  specialLeaveType: SpecialLeaveType
-}
-
-
-export interface SpecialLeaveType {
-  id: string
   code: string
   name: string
+  latitude?: number
+  longitude?: number
   isActive: boolean
-  specialLeaveGroup: SpecialLeaveGroup
 }
 
-
-export interface SpecialLeaveGroup {
-  id: string
+export interface TeamUI {
+  id: number
+  code: string
   name: string
-  color: string
+  shiftType: ShiftType
   isActive: boolean
-  sortOrder: number
+  department: DepartmentUI
+}
+
+export interface WorkShiftUI {
+  id: number
+  code: string
+  name: string
+  shiftType: ShiftType
+  isActive: boolean
+}
+
+// =====================
+// Schedule
+// =====================
+
+export interface TeamWorkDayUI {
+  id: string
+  date: string
+  type: WorkType
+  teamId: number
+  overrides?: TeamWorkOverrideUI[]
+}
+
+export interface TeamWorkOverrideUI {
+  id: string
+  overriddenType: WorkType
+  reason: TeamWorkOverrideReason
+  memo: string
+  createdAt: string
+}
+
+export interface DutyUI {
+  id: string
+  date: string
+  status: ScheduleStatus
+  memo: string
+  isLocked: boolean
+  team: {
+    id: number
+    name: string
+  }
+}
+
+// =====================
+// Assignment
+// =====================
+
+export interface WorkGroupUI {
+  id: number
+  code: string
+  name: string
+}
+
+export interface WorkGroupAssignmentUI {
+  id: string
+  staff: {
+    id: number
+    name: string
+  }
+  workGroup: WorkGroupUI
+}
+
+export interface SpecialLeaveUI {
+  id: string
+  staff: {
+    id: number
+    name: string
+  }
+  type: {
+    id: string
+    name: string
+    color?: string
+  }
+  baseDate: string
+  startTime: string
+  endTime: string
+}
+
+// =====================
+// Incident
+// =====================
+
+export interface IncidentUI {
+  id: string
+  category: {
+    id: number
+    name: string
+    color: string
+  }
+  type: {
+    id: number
+    name: string
+  }
+  location: {
+    id: number
+    name: string
+  }
+  destination?: {
+    id: number
+    name: string
+  }
+  vehicles: IncidentVehicleUI[]
+  createdAt: string
+}
+
+export interface IncidentVehicleUI {
+  id: string
+  vehicle: {
+    id: number
+    name: string
+  }
+  dispatchTime: string
+  returnTime: string
+  staffs: IncidentStaffUI[]
+}
+
+export interface IncidentStaffUI {
+  id: string
+  staff: {
+    id: number
+    name: string
+  }
+  allowances: {
+    id: number
+    name: string
+  }[]
+}
+
+// =====================
+// Attendance / Overtime
+// =====================
+
+export interface AttendanceUI {
+  id: string
+  type: AttendanceType
+  startTime: string
+  endTime: string
+  staff: {
+    id: number
+    name: string
+  }
+}
+
+export interface OvertimeSummaryUI {
+  id: string
+  staff: {
+    id: number
+    name: string
+  }
+  totalMinutes: number
+  isFinalized: boolean
+  details: OvertimeSummaryDetailUI[]
+}
+
+export interface OvertimeSummaryDetailUI {
+  rate: number
+  minutes: number
+  category: {
+    id: number
+    name: string
+    color?: string
+  }
+}
+
+// =====================
+// Location
+// =====================
+
+export interface LocationUI {
+  id: number
+  type: LocationType
+  name: string
+  parentId?: number
+  children?: LocationUI[]
 }
