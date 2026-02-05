@@ -39,8 +39,8 @@ describe('STAFF_REMOVED', () => {
         teams: [{
           teamId: 1,
           workGroups: [
-            { workGroupId: 101, staffIds: [10, 20] },
-            { workGroupId: 102, staffIds: [] },
+            { workGroupId: 101, staffIds: [10, 20],capacity: 10 },
+            { workGroupId: 102, staffIds: [],capacity: 10 },
           ],
         }],
       }
@@ -63,8 +63,8 @@ describe('STAFF_REMOVED', () => {
         teams: [{
           teamId: 1,
           workGroups: [
-            { workGroupId: 101, staffIds: [10] },
-            { workGroupId: 102, staffIds: [] },
+            { workGroupId: 101, staffIds: [10],capacity: 10 },
+            { workGroupId: 102, staffIds: [],capacity: 10 },
           ],
         }],
       }
@@ -89,8 +89,8 @@ describe('STAFF_REMOVED', () => {
         teams: [{
           teamId: 1,
           workGroups: [
-            { workGroupId: 101, staffIds: [10] },
-            { workGroupId: 102, staffIds: [20] },
+            { workGroupId: 101, staffIds: [10],capacity: 10 },
+            { workGroupId: 102, staffIds: [20],capacity: 10 },
           ],
         }],
       }

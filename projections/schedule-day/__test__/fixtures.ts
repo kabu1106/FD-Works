@@ -7,8 +7,8 @@ export const baseProjection: ScheduleDayProjection = {
     {
       teamId: 1,
       workGroups: [
-        { workGroupId: 101, staffIds: [] },
-        { workGroupId: 102, staffIds: [] },
+        { workGroupId: 101, staffIds: [],capacity: 10 },
+        { workGroupId: 102, staffIds: [],capacity: 10 },
       ],
     },
   ],

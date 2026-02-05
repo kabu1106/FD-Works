@@ -1,6 +1,7 @@
 import { ScheduleEvent } from '@/domain/events/schedule-events'
 import { ScheduleDayProjection } from './schedule-day.projection'
 import { removeStaff, addStaff } from './staff-helpers'
+import { ScheduleViewModel } from '../read-models/schedule-view.model'
 
 function assertNever(x: never): never {
   throw new Error(`Unhandled event: ${JSON.stringify(x)}`)
@@ -129,4 +130,27 @@ export function applyScheduleEvent(
     default:
       return assertNever(event)
   }
+}
+
+/**
+ * Projection の状態から、UIに最適化された Read Model を生成する
+ */
+export function buildViewModel(projection: ScheduleDayProjection): ScheduleViewModel {
+  const staffAssignmentMap: Record<number, { teamId: number; workGroupId: number }> = {};
+
+  projection.teams.forEach(team => {
+    team.workGroups.forEach(group => {
+      group.staffIds.forEach(staffId => {
+        staffAssignmentMap[staffId] = {
+          teamId: team.teamId,
+          workGroupId: group.workGroupId
+        };
+      });
+    });
+  });
+
+  return {
+    ...projection,
+    staffAssignmentMap
+  };
 }
