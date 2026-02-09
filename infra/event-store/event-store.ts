@@ -1,5 +1,5 @@
 // domain/event-store/event-store.ts
-import { EventEnvelope } from '@/domain/events/event-envelope'
+import { EventEnvelope } from '@/domain/shared/event-envelope'
 
 export interface EventStore<E extends { type: string }> {
   append(

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { InMemoryEventStore } from '@/infra/event-store/in-memory-event-store'
-import { ScheduleEvent } from '@/domain/events/schedule-events'
+import { ScheduleEvent } from '@/domain/shared/schedule-events'
 import { OptimisticLockError } from '@/domain/errors/OptimisticLockError'
 
 describe('EventStore optimistic lock', () => {

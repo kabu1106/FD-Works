@@ -5,6 +5,7 @@ export type ScheduleEvent =
   | StaffRemovedEvent
   | StaffMovedEvent
   | StaffSwappedEvent
+  | SpecialLeaveRegisteredEvent
 
   export interface StaffAssignedEvent {
     type: 'STAFF_ASSIGNED'
@@ -75,3 +76,10 @@ export type ScheduleEvent =
     }
   }
   
+  export interface SpecialLeaveRegisteredEvent {
+    type: 'SPECIAL_LEAVE_REGISTERED';
+    date: string;
+    staffId: number;
+    leaveTypeId: string;
+    timeRange?: string; // 例: "10:00-11:00"
+  }

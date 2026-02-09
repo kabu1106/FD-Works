@@ -1,7 +1,7 @@
 // projections/schedule-day/__test__/replay.test.ts
 import { replayScheduleDay } from '../replay'
 import { emptyScheduleDay } from '../empty'
-import { ScheduleEvent } from '@/domain/events/schedule-events'
+import { ScheduleEvent } from '@/domain/shared/schedule-events'
 
 describe('ScheduleDay Replay', () => {
   it('イベントを順番に再生して正しい状態になる', () => {

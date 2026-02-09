@@ -38,9 +38,10 @@ describe('STAFF_REMOVED', () => {
         ...baseProjection,
         teams: [{
           teamId: 1,
+          name: '1担当',
           workGroups: [
-            { workGroupId: 101, staffIds: [10, 20],capacity: 10 },
-            { workGroupId: 102, staffIds: [],capacity: 10 },
+            { workGroupId: 101, staffIds: [10, 20], name: '1番起' },
+            { workGroupId: 102, staffIds: [], name: '2番起' },
           ],
         }],
       }
@@ -62,9 +63,10 @@ describe('STAFF_REMOVED', () => {
         ...baseProjection,
         teams: [{
           teamId: 1,
+          name: '1担当',
           workGroups: [
-            { workGroupId: 101, staffIds: [10],capacity: 10 },
-            { workGroupId: 102, staffIds: [],capacity: 10 },
+            { workGroupId: 101, staffIds: [10], name: '1番起' },
+            { workGroupId: 102, staffIds: [], name: '2番起' },
           ],
         }],
       }
@@ -88,9 +90,10 @@ describe('STAFF_REMOVED', () => {
         ...baseProjection,
         teams: [{
           teamId: 1,
+          name: '1担当',
           workGroups: [
-            { workGroupId: 101, staffIds: [10],capacity: 10 },
-            { workGroupId: 102, staffIds: [20],capacity: 10 },
+            { workGroupId: 101, staffIds: [10], name: '1番起' },
+            { workGroupId: 102, staffIds: [20], name: '2番起' },
           ],
         }],
       }

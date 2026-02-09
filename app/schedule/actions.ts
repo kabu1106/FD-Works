@@ -11,7 +11,7 @@ import { normalizeDateToJST } from '@/lib/timeUtils'
 export async function getScheduleDayAction(dateString: string) {
   const date = normalizeDateToJST(dateString)
 
-  const scheduleDay = await db.scheduleDay.upsert({
+  const scheduleDay = await db.duty.upsert({
     where: { date },
     update: {},
     create: {

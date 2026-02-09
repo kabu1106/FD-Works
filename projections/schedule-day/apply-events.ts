@@ -1,4 +1,4 @@
-import { ScheduleEvent } from '@/domain/events/schedule-events'
+import { ScheduleEvent } from '@/domain/shared/schedule-events'
 import { ScheduleDayProjection } from './schedule-day.projection'
 import { removeStaff, addStaff } from './staff-helpers'
 import { ScheduleViewModel } from '../read-models/schedule-view.model'
@@ -7,19 +7,20 @@ function assertNever(x: never): never {
   throw new Error(`Unhandled event: ${JSON.stringify(x)}`)
 }
 
+// domain/projections/apply-events.ts
+
 export function applyScheduleEvent(
   projection: ScheduleDayProjection,
   event: ScheduleEvent
 ): ScheduleDayProjection {
+  // 初期化漏れ対策
+  const currentUnassigned = projection.unassignedStaffs || [];
 
   switch (event.type) {
-
-    // =====================
-    // ASSIGN
-    // =====================
-    case 'STAFF_ASSIGNED':
+    case 'STAFF_ASSIGNED': {
       return {
         ...projection,
+        unassignedStaffs: currentUnassigned.filter(s => s.id !== event.staffId),
         teams: projection.teams.map(team =>
           team.teamId !== event.to.teamId
             ? team
@@ -28,21 +29,20 @@ export function applyScheduleEvent(
                 workGroups: team.workGroups.map(group =>
                   group.workGroupId !== event.to.workGroupId
                     ? group
-                    : {
-                        ...group,
-                        staffIds: addStaff(group.staffIds, event.staffId),
-                      }
+                    : { ...group, staffIds: addStaff(group.staffIds, event.staffId) }
                 ),
               }
         ),
-      }
+      };
+    }
 
-    // =====================
-    // REMOVED
-    // =====================
-    case 'STAFF_REMOVED':
+    case 'STAFF_REMOVED': {
+      const alreadyUnassigned = currentUnassigned.some(s => s.id === event.staffId);
       return {
         ...projection,
+        unassignedStaffs: alreadyUnassigned 
+          ? currentUnassigned 
+          : [...currentUnassigned, { id: event.staffId, name: `職員 ${event.staffId}` }],
         teams: projection.teams.map(team =>
           team.teamId !== event.from.teamId
             ? team
@@ -51,106 +51,59 @@ export function applyScheduleEvent(
                 workGroups: team.workGroups.map(group =>
                   group.workGroupId !== event.from.workGroupId
                     ? group
-                    : {
-                        ...group,
-                        staffIds: removeStaff(group.staffIds, event.staffId),
-                      }
+                    : { ...group, staffIds: removeStaff(group.staffIds, event.staffId) }
                 ),
               }
         ),
-      }
+      };
+    }
 
-    // =====================
-    // MOVED
-    // =====================
-    case 'STAFF_MOVED':
+    case 'STAFF_MOVED': {
       return {
         ...projection,
-        teams: projection.teams.map(team => {
-          if (
-            team.teamId !== event.from.teamId &&
-            team.teamId !== event.to.teamId
-          ) {
-            return team
-          }
+        // ここが重要：MOVED では unassignedStaffs をそのまま引き継ぐ
+        unassignedStaffs: currentUnassigned, 
+        teams: projection.teams.map(team => ({
+          ...team,
+          workGroups: team.workGroups.map(group => {
+            let nextStaffIds = [...group.staffIds];
+            
+            // 1. 移動元なら削除
+            if (team.teamId === event.from.teamId && group.workGroupId === event.from.workGroupId) {
+              nextStaffIds = removeStaff(nextStaffIds, event.staffId);
+            }
+            // 2. 移動先なら追加（else if にしないことで同一グループ内の移動でも不整合を防ぐ）
+            if (team.teamId === event.to.teamId && group.workGroupId === event.to.workGroupId) {
+              nextStaffIds = addStaff(nextStaffIds, event.staffId);
+            }
+            
+            return { ...group, staffIds: nextStaffIds };
+          })
+        }))
+      };
+    }
 
-          return {
-            ...team,
-            workGroups: team.workGroups.map(group => {
-
-              // from
-              if (
-                team.teamId === event.from.teamId &&
-                group.workGroupId === event.from.workGroupId
-              ) {
-                return {
-                  ...group,
-                  staffIds: removeStaff(group.staffIds, event.staffId),
-                }
-              }
-
-              // to
-              if (
-                team.teamId === event.to.teamId &&
-                group.workGroupId === event.to.workGroupId
-              ) {
-                return {
-                  ...group,
-                  staffIds: addStaff(group.staffIds, event.staffId),
-                }
-              }
-
-              return group
-            }),
-          }
-        }),
-      }
-
-    // =====================
-    // SWAPPED
-    // =====================
     case 'STAFF_SWAPPED': {
-      const afterFirstMove = applyScheduleEvent(projection, {
+      // 1回目の移動を適用
+      const stateAfterA = applyScheduleEvent(projection, {
         type: 'STAFF_MOVED',
         date: event.date,
         staffId: event.staffA.staffId,
         from: event.staffA.from,
-        to: event.staffB.from,
-      })
+        to: event.staffA.to, // 修正: 引数の構造に合わせる
+      });
 
-      return applyScheduleEvent(afterFirstMove, {
+      // 2回目の移動を適用
+      return applyScheduleEvent(stateAfterA, {
         type: 'STAFF_MOVED',
         date: event.date,
         staffId: event.staffB.staffId,
         from: event.staffB.from,
-        to: event.staffA.from,
-      })
+        to: event.staffB.to,
+      });
     }
 
     default:
-      return assertNever(event)
+      return assertNever(event);
   }
-}
-
-/**
- * Projection の状態から、UIに最適化された Read Model を生成する
- */
-export function buildViewModel(projection: ScheduleDayProjection): ScheduleViewModel {
-  const staffAssignmentMap: Record<number, { teamId: number; workGroupId: number }> = {};
-
-  projection.teams.forEach(team => {
-    team.workGroups.forEach(group => {
-      group.staffIds.forEach(staffId => {
-        staffAssignmentMap[staffId] = {
-          teamId: team.teamId,
-          workGroupId: group.workGroupId
-        };
-      });
-    });
-  });
-
-  return {
-    ...projection,
-    staffAssignmentMap
-  };
 }

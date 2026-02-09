@@ -1,6 +1,6 @@
 // domain/projections/__test__/stress-test.helpers.ts
 
-import { ScheduleEvent } from '@/domain/events/schedule-events';
+import { ScheduleEvent } from '@/domain/shared/schedule-events';
 
 export const generateRandomEvents = (count: number, staffIds: number[], workGroupIds: {teamId: number, wgId: number}[]): ScheduleEvent[] => {
   const events: ScheduleEvent[] = [];

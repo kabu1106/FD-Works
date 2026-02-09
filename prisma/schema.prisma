@@ -57,6 +57,7 @@ enum UserRole {
   ADMINISTRATOR
   APPROVER
   GENERAL
+  Department
 }
 
 model User {
@@ -233,6 +234,16 @@ model Staff {
   IncidentStaff           IncidentStaff[]
   Attendance              Attendance[]
   OvertimeSummary         OvertimeSummary[]
+
+  attendanceEvents AttendanceEvent[]
+
+  incidentStaffEngagements IncidentStaffEngagement[]
+
+  substituteHolidays SubstituteHoliday[]
+
+  weeklyDayOffs WeeklyDayOff[]
+
+  dutyDayTypes DutyDayType[]
 }
 
 // =======================
@@ -267,10 +278,34 @@ model Duty {
   incidents               Incident[]
   attendance              Attendance[]
   OvertimeSummary         OvertimeSummary[]
+  attendanceEvents        AttendanceEvent[]
 
   @@unique([date, teamId])
   @@map("duties")
+  dutyDayTypes DutyDayType[]
 }
+
+model DutyDayType {
+  id String @id @default(uuid())
+
+  dutyId  String
+  staffId Int
+
+  dayType DayType
+
+  reason String @default("") // 祝日 / 振替休日 / 週休日 等
+
+  decidedAt DateTime @default(now())
+  decidedBy String? // userId 等
+
+  duty  Duty  @relation(fields: [dutyId], references: [id], onDelete: Cascade)
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Restrict)
+
+  @@unique([dutyId, staffId])
+  @@index([staffId, dayType])
+  @@map("duty_day_types")
+}
+
 
 model WorkGroupAssignment {
   id          String   @id @default(uuid())
@@ -351,6 +386,58 @@ model OvertimeSlot {
   @@index([overtimeRateCategoryId])
 }
 
+model WeeklyDayOff {
+  id      String   @id @default(uuid())
+  staffId Int
+  date    DateTime @db.Date
+
+  createdAt DateTime @default(now())
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, date])
+  @@map("weekly_days_off")
+}
+
+model Holiday {
+  date DateTime @db.Date
+  name String
+
+  isActive Boolean @default(true)
+
+  @@id([date])
+  @@map("holidays")
+}
+
+model SubstituteHoliday {
+  id String @id @default(uuid())
+
+  staffId Int
+  staff   Staff @relation(fields: [staffId], references: [id], onDelete: Restrict)
+
+  originalHoliday DateTime @db.Date
+  substituteDate  DateTime @db.Date
+
+  reason String @default("") // 任意：週休日重複、連続週休日など
+
+  decidedAt DateTime @default(now())
+  decidedBy String? // userId 等
+
+  @@unique([staffId, originalHoliday])
+  @@unique([staffId, substituteDate])
+  @@index([staffId, substituteDate])
+  @@map("substitute_holidays")
+}
+
+
+enum DayType {
+  WEEKDAY        // 平日
+  WEEKLY_DAY_OFF // 週休日
+  HOLIDAY        // 祝日
+  SUBSTITUTE_HOLIDAY // 振替休日（祝日扱い）
+}
+
+
 // =======================
 // SpecialLeave Definition
 // =======================
@@ -402,13 +489,30 @@ model Incident {
   location    Location         @relation(fields: [locationId], references: [id])
   destination Hospital?        @relation(fields: [destinationId], references: [id], onDelete: SetNull)
 
-  vehicles IncidentVehicle[]
+  vehicles                 IncidentVehicle[]
+  incidentStaffEngagements IncidentStaffEngagement[]
 
   @@index([dutyId])
   @@index([createdAt])
   @@index([isDeleted, createdAt])
   @@index([locationId])
   @@map("incidents")
+}
+
+model IncidentStaffEngagement {
+  id          String   @id @default(uuid())
+  incidentId  String
+  staffId     Int
+  engagedFrom DateTime
+  engagedTo   DateTime
+
+  createdAt DateTime @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  staff    Staff    @relation(fields: [staffId], references: [id], onDelete: Restrict)
+
+  @@index([staffId, engagedFrom, engagedTo])
+  @@map("incident_staff_engagements")
 }
 
 model IncidentCategory {
@@ -573,23 +677,39 @@ model Hospital {
 // Attendance Definition
 // =======================
 
-enum AttendanceType {
-  WORK_START
-  BREAK_START
-  BREAK_OUT
-  WORK_OUT
+enum AttendanceEventType {
+  WORK_STARTED
+  BREAK_STARTED
+  BREAK_ENDED
+  WORK_ENDED
+}
+
+model AttendanceEvent {
+  id         String              @id @default(uuid())
+  dutyId     String
+  staffId    Int
+  type       AttendanceEventType
+  occurredAt DateTime
+
+  createdAt DateTime @default(now())
+
+  duty  Duty  @relation(fields: [dutyId], references: [id], onDelete: Cascade)
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Restrict)
+
+  @@index([dutyId, staffId, occurredAt])
+  @@map("attendance_events")
 }
 
 model Attendance {
-  id           String         @id @default(uuid())
+  id           String              @id @default(uuid())
   dutyId       String
   departmentId Int
   staffId      Int
-  type         AttendanceType
+  type         AttendanceEventType
   startTime    DateTime
   endTime      DateTime
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
   duty       Duty       @relation(fields: dutyId, references: id, onDelete: Cascade)
   department Department @relation(fields: departmentId, references: id, onDelete: Restrict)
@@ -605,21 +725,19 @@ model OvertimeSummary {
   dutyId  String
   staffId Int
 
-  version      Int @default(1) /// Duty内での世代
-  totalMinutes Int
+  calculationVersion Int // ← version の意味を明確化
+  totalMinutes       Int
 
   isFinalized Boolean @default(false)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  calculatedAt DateTime @default(now())
 
   duty  Duty  @relation(fields: [dutyId], references: [id], onDelete: Cascade)
   staff Staff @relation(fields: [staffId], references: [id], onDelete: Restrict)
 
   details OvertimeSummaryDetail[]
 
-  @@unique([dutyId, staffId, version])
-  @@index([dutyId, version])
+  @@unique([dutyId, staffId, calculationVersion])
 }
 
 model OvertimeSummaryDetail {

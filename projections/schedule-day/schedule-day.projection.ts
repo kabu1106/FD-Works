@@ -28,13 +28,14 @@ export function toViewModel(projection: ScheduleDayProjection): ScheduleViewMode
 // ① 単一のワークグループの型
 export interface WorkGroupProjection {
   workGroupId: number;
+  name: string;
   staffIds: number[];
-  capacity: number; // ここに追加済み
 }
 
 // ② チームの型
 export interface TeamProjection {
   teamId: number;
+  name: string;
   workGroups: WorkGroupProjection[]; // ①を参照するように修正
 }
 
@@ -42,6 +43,7 @@ export interface TeamProjection {
 export interface ScheduleDayProjection {
   date: string;
   teams: TeamProjection[]; // ②を参照するように修正
+  unassignedStaffs: { id: number; name: string }[]; // 追加
 }
 
 // ④ UI用のビューモデル

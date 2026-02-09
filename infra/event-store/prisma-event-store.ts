@@ -1,6 +1,6 @@
 // infra/event-store/in-memory-event-store.ts
 import { EventStore } from '@/infra/event-store/event-store'
-import { EventEnvelope } from '@/domain/events/event-envelope'
+import { EventEnvelope } from '@/domain/shared/event-envelope'
 import { OptimisticLockError } from '@/domain/errors/OptimisticLockError'
 import { PrismaClient } from '@prisma/client'
 

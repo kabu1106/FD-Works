@@ -1,89 +1,38 @@
+import { ScheduleDayProjection } from "@/projections/schedule-day/schedule-day.projection";
+import { checkInvariants } from "@/projections/schedule-day/schedule-validator";
 import { ScheduleCommand } from "../commands/schedule-commands"
-import { EventEnvelope } from "../events/event-envelope"
-import { ScheduleEvent } from "../events/schedule-events"
+import { EventEnvelope } from "../shared/event-envelope"
+import { ScheduleEvent } from "../shared/schedule-events"
+import { convertToEvent } from "./handlers-helper"
 
 export function handleScheduleCommand(
-  cmd: ScheduleCommand
+  cmd: ScheduleCommand,
+  currentProjection: ScheduleDayProjection
 ): EventEnvelope<ScheduleEvent>[] {
-  const occurredAt = new Date().toISOString()
+  // 1. まずイベント（仮）を作る
+  const event = convertToEvent(cmd); 
 
-  switch (cmd.type) {
+  // 2. 不変条件チェック（Phase 1 のロジックを再利用！）
+  // ここで違反があれば Error がスローされ、関数の実行が止まります
+  checkInvariants(currentProjection, event);
 
-    case 'ASSIGN_STAFF_TO_WORK_GROUP': {
-      const event: ScheduleEvent = {
-        type: 'STAFF_ASSIGNED',
-        date: cmd.date,
-        staffId: cmd.staffId,
-        to: cmd.to,
-      }
+  // 3. OKなら封筒（Envelope）に入れて返す
+  const occurredAt = new Date().toISOString();
+  const aggregateType = 'ScheduleDay';
+  const schemaVersion = 1;
+  const aggregateVersion = 1; // 将来的には currentProjection.version + 1 等に
 
-      return [{
-        eventId: crypto.randomUUID(),
-        aggregateId: cmd.date,
-        type: event.type,
-        payload: event,
-        occurredAt,
-        causedBy: cmd.commandId,
-        version: 1,
-      }]
-    }
+  const envelope: EventEnvelope<ScheduleEvent> = {
+    eventId: crypto.randomUUID(),
+    aggregateId: cmd.date,
+    aggregateType,
+    eventType: event.type,
+    payload: event,
+    occurredAt,
+    causedBy: cmd.commandId,
+    aggregateVersion,
+    schemaVersion,
+  };
 
-    case 'MOVE_STAFF_BETWEEN_WORK_GROUPS': {
-      const event: ScheduleEvent = {
-        type: 'STAFF_MOVED',
-        date: cmd.date,
-        staffId: cmd.staffId,
-        from: cmd.from,
-        to: cmd.to,
-      }
-
-      return [{
-        eventId: crypto.randomUUID(),
-        aggregateId: cmd.date,
-        type: event.type,
-        payload: event,
-        occurredAt,
-        causedBy: cmd.commandId,
-        version: 1,
-      }]
-    }
-
-    case 'REMOVE_STAFF_FROM_WORK_GROUP': {
-      const event: ScheduleEvent = {
-        type: 'STAFF_REMOVED',
-        date: cmd.date,
-        staffId: cmd.staffId,
-        from: cmd.from,
-      }
-
-      return [{
-        eventId: crypto.randomUUID(),
-        aggregateId: cmd.date,
-        type: event.type,
-        payload: event,
-        occurredAt,
-        causedBy: cmd.commandId,
-        version: 1,
-      }]
-    }
-
-    case 'SWAP_STAFF': {
-      const event: ScheduleEvent = {
-        type: 'STAFF_SWAPPED',
-        date: cmd.date,
-        staffA: cmd.staffA,
-        staffB: cmd.staffB,
-      }
-
-      return [{
-        eventId: crypto.randomUUID(),
-        aggregateId: cmd.date,
-        type: event.type,
-        payload: event,
-        occurredAt,
-        causedBy: cmd.commandId,
-        version: 1,
-      }]
-    }
-  }
+  return [envelope];
 }

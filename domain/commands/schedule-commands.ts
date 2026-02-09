@@ -9,6 +9,7 @@ export type ScheduleCommand =
   | RemoveStaffFromWorkGroupCommand
   | MoveStaffBetweenWorkGroupsCommand
   | SwapStaffCommand
+  | RegisterSpecialLeaveCommand
 
   export interface AssignStaffToWorkGroupCommand extends CommandBase {
     type: 'ASSIGN_STAFF_TO_WORK_GROUP'
@@ -86,4 +87,9 @@ export type ScheduleCommand =
     }
   }
 
-  
+  export interface RegisterSpecialLeaveCommand {
+    type: 'REGISTER_SPECIAL_LEAVE';
+    date: string;
+    staffId: number;
+    leaveTypeId: string;
+  }
