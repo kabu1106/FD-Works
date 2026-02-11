@@ -1,5 +1,5 @@
 import z from "zod"
-import { DateTimeSchema } from "../shared"
+import { DateTimeSchema } from "../shared/dateschema"
 
 export const WorkStartedSchema = z.object({
   eventType: z.literal("WorkStarted"),

@@ -1,5 +1,5 @@
 // infra/event-store/in-memory-event-store.ts
-import { EventStore } from '@/infra/event-store/event-store' // パスは適宜調整してください
+import { EventStore } from '@/infra/event-store/eventStore' // パスは適宜調整してください
 import { EventEnvelope } from '@/domain/shared/event-envelope'
 import { OptimisticLockError } from '@/domain/errors/OptimisticLockError'
 

@@ -437,6 +437,26 @@ enum DayType {
   SUBSTITUTE_HOLIDAY // 振替休日（祝日扱い）
 }
 
+model OvertimeSlotResolved {
+  id String @id @default(uuid())
+
+  dutyId  String
+  staffId Int
+
+  startAt DateTime
+  endAt   DateTime
+  minutes Int
+
+  overtimeRateCategoryId Int
+  rateSnapshot Float
+
+  createdAt DateTime @default(now())
+
+  @@index([dutyId, staffId])
+  @@index([overtimeRateCategoryId])
+  @@map("overtime_slot_resolved")
+}
+
 
 // =======================
 // SpecialLeave Definition

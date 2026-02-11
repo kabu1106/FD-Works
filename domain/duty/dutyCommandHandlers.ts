@@ -1,6 +1,6 @@
 // src/application/commandHandlers/duty/DutyCommandHandler.ts
 
-import { DutyAggregate } from "@/domain/duty/DutyAggregate";
+import { DutyAggregate } from "./dutyAggregate";
 import { DutyCommand } from "@/domain/duty/dutyCommands";
 import { EventStoreRepository } from "@/infra/event-store/EventStoreRepository";
 import { DutyEvent } from "./duty-events";
@@ -24,11 +24,11 @@ export class DutyCommandHandler {
         break;
 
       case "ApproveDuty":
-        aggregate.approve(command.approvedby);
+        aggregate.approve(command.approvedBy);
         break;
 
       case "RevokeDutyApproval":
-        aggregate.revokeApproval();
+        aggregate.revokeApproval(command.reason);
         break;
 
       case "LockDuty":

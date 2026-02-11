@@ -1,5 +1,5 @@
 import z from "zod";
-import { DateTimeSchema } from "../shared";
+import { DateTimeSchema } from "../../domain/shared/dateschema";
 
 export const OvertimeFinalizedSchema = z.object({
   eventType: z.literal("OvertimeFinalized"),

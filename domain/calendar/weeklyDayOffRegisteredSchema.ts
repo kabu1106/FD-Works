@@ -1,5 +1,5 @@
 import z from "zod";
-import { DateSchema } from "../shared";
+import { DateSchema } from "../shared/domainEventrt";
 
 export const WeeklyDayOffRegisteredSchema = z.object({
   eventType: z.literal("WeeklyDayOffRegistered"),

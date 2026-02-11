@@ -1,5 +1,5 @@
 import z from "zod";
-import { DateSchema } from "../shared";
+import { DateSchema } from "../shared/domainEventrt";
 
 export const DisasterDayRegisteredSchema = z.object({
     eventType: z.literal("DisasterDayRegistered"),

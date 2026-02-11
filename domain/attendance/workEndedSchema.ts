@@ -1,5 +1,5 @@
 import z from "zod";
-import { DateTimeSchema } from "../shared";
+import { DateTimeSchema } from "../shared/dateschema";
 
 export const WorkEndedSchema = z.object({
   eventType: z.literal("WorkEnded"),

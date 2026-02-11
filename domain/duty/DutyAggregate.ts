@@ -7,15 +7,11 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
   private dutyId!: string;
   private teamId!: number;
   private date!: string;
-  private reason!: string;
 
   private approved = false;
   private locked = false;
   private staffIds = new Set<number>();
 
-  // =====================
-  // Factory
-  // =====================
   static create(dutyId: string, teamId: number, date: string) {
     const agg = new DutyAggregate();
     agg.apply({
@@ -25,9 +21,6 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
     return agg;
   }
 
-  // =====================
-  // Commands
-  // =====================
   assignStaff(staffId: number) {
     this.ensureMutable();
     if (this.staffIds.has(staffId)) {
@@ -48,7 +41,7 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
 
     this.apply({
       eventType: "StaffUnassignedFromDuty",
-      payload: { dutyId: this.dutyId, staffId, reason: this.reason },
+      payload: { dutyId: this.dutyId, staffId },
     });
   }
 
@@ -65,13 +58,13 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
     });
   }
 
-  revokeApproval() {
+  revokeApproval(reason: string) {
     if (!this.approved) throw new Error("Not approved");
     if (this.locked) throw new Error("Already locked");
 
     this.apply({
       eventType: "DutyApprovalRevoked",
-      payload: { dutyId: this.dutyId, reason:this.reason },
+      payload: { dutyId: this.dutyId, reason },
     });
   }
 
@@ -95,18 +88,12 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
     });
   }
 
-  // =====================
-  // Guards
-  // =====================
   private ensureMutable() {
     if (this.approved || this.locked) {
       throw new Error("Duty is immutable");
     }
   }
 
-  // =====================
-  // Event Applier
-  // =====================
   protected when(event: DutyEvent) {
     switch (event.eventType) {
       case "DutyCreated":
@@ -133,10 +120,6 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
 
       case "DutyLocked":
         this.locked = true;
-        break;
-
-      case "DutyMarkedForRecalculation":
-        // stateは変えない（Projection用イベント）
         break;
     }
   }

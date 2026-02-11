@@ -1,11 +1,11 @@
 import z from "zod"
 import { EventBase } from "../shared/base"
-import { DutyDayTypeDeterminedSchema } from "./dutyDayTypeDeterminedSchema"
-import { IncidentAllowanceCalculatedSchema } from "./incidentAllowanceCalculatedSchema"
-import { IncidentAllowanceFinalizedSchema } from "./incidentAllowanceFinalizedSchema"
-import { OvertimeCalculatedSchema } from "./overtimeCalculatedSchema"
-import { OvertimeFinalizedSchema } from "./overtimeFinalizedSchema"
-import { OvertimeSlotResolvedSchema } from "./overtimeSlotResolvedSchema"
+import { DutyDayTypeDeterminedSchema } from "../../projections/duty/dutyDayTypeDeterminedSchema"
+import { IncidentAllowanceCalculatedSchema } from "../../projections/incident/incidentAllowanceCalculatedSchema"
+import { IncidentAllowanceFinalizedSchema } from "../../projections/incident/incidentAllowanceFinalizedSchema"
+import { OvertimeCalculatedSchema } from "../../projections/overtime/overtimeCalculatedSchema"
+import { OvertimeFinalizedSchema } from "../../projections/overtime/overtimeFinalizedSchema"
+import { OvertimeSlotResolvedSchema } from "../../projections/overtime/overtimeSlotResolvedSchema"
 
 export type ProjectionEvent =
   | DutyDayTypeDetermined

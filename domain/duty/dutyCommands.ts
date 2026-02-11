@@ -32,11 +32,12 @@ export type DutyCommand =
   | {
       type: "ApproveDuty";
       dutyId: string;
-      approvedby: string;
+      approvedBy: string;
     }
   | {
       type: "RevokeDutyApproval";
       dutyId: string;
+      reason: string;
     }
   | {
       type: "LockDuty";
