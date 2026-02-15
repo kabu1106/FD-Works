@@ -1,14 +1,14 @@
 import type { Prisma } from '@prisma/client';
 
 import { z } from 'zod';
-import { AttendanceTypeSchema } from './AttendanceTypeSchema';
+import { AttendanceEventTypeSchema } from './AttendanceEventTypeSchema';
 import { DutyCreateNestedOneWithoutAttendanceInputSchema } from './DutyCreateNestedOneWithoutAttendanceInputSchema';
 import { DepartmentCreateNestedOneWithoutAttendanceInputSchema } from './DepartmentCreateNestedOneWithoutAttendanceInputSchema';
 import { StaffCreateNestedOneWithoutAttendanceInputSchema } from './StaffCreateNestedOneWithoutAttendanceInputSchema';
 
 export const AttendanceCreateInputSchema: z.ZodType<Prisma.AttendanceCreateInput> = z.strictObject({
   id: z.string().optional(),
-  type: z.lazy(() => AttendanceTypeSchema),
+  type: z.lazy(() => AttendanceEventTypeSchema),
   startTime: z.coerce.date(),
   endTime: z.coerce.date(),
   createdAt: z.coerce.date().optional(),

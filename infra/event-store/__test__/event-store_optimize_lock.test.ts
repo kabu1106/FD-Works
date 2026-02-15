@@ -1,42 +1,31 @@
-import { describe, it, expect } from 'vitest'
-import { InMemoryEventStore } from '@/infra/event-store/in-memory-event-store'
-import { ScheduleEvent } from '@/domain/shared/schedule-events'
-import { OptimisticLockError } from '@/domain/errors/OptimisticLockError'
+import { describe, it, expect } from "vitest";
+import { InMemoryEventStoreRepository } from "@/infra/event-store/in-memory-event-store";
+import { OptimisticLockError } from "@/domain/errors/OptimisticLockError";
+import { AttendanceEvent } from "@/domain/attendance/attendance-events";
 
-describe('EventStore optimistic lock', () => {
-  it('古い version で append すると失敗する', async () => {
-    const store = new InMemoryEventStore<ScheduleEvent>()
+describe("EventStore optimistic lock", () => {
+  it("古い version で append すると失敗する", async () => {
+    const store =
+      new InMemoryEventStoreRepository<AttendanceEvent>();
 
-    const baseEvent = {
-      eventId: 'e1',
-      eventType: 'STAFF_ASSIGNED' as const,
+    const streamId = "attendance-d1-1";
+    const aggregateType = "Attendance";
+
+    const event: AttendanceEvent = {
+      eventType: "WorkStarted",
       payload: {
-        type: 'STAFF_ASSIGNED',
-        date: '2026-02-01',
-        staffId: 10,
-        to: { teamId: 1, workGroupId: 101 },
+        dutyId: "d1",
+        staffId: 1,
+        at: "2024-01-01T09:00:00Z",
       },
-      occurredAt: new Date().toISOString(),
-      causedBy: 'cmd-1',
-      schemaVersion: 1,
-    } as const
+    };
 
-    // v0 → v1（成功）
-    await store.append(
-      '2026-02-01',
-      'ScheduleDay',
-      0,
-      [baseEvent]
-    )
+    // 1回目: version 0 → 成功
+    await store.append(streamId, aggregateType, [event], 0);
 
-    // v0 前提で再度 append（❌ 競合）
+    // 2回目: まだ version 0 を渡す → 失敗するはず
     await expect(
-      store.append(
-        '2026-02-01',
-        'ScheduleDay',
-        0,
-        [baseEvent]
-      )
-    ).rejects.toBeInstanceOf(OptimisticLockError)
-  })
-})
+      store.append(streamId, aggregateType, [event], 0)
+    ).rejects.toBeInstanceOf(OptimisticLockError);
+  });
+});

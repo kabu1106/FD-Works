@@ -11,6 +11,8 @@ export const IncidentMinOrderByAggregateInputSchema: z.ZodType<Prisma.IncidentMi
   locationId: z.lazy(() => SortOrderSchema).optional(),
   destinationId: z.lazy(() => SortOrderSchema).optional(),
   destinationName: z.lazy(() => SortOrderSchema).optional(),
+  occurredAt: z.lazy(() => SortOrderSchema).optional(),
+  status: z.lazy(() => SortOrderSchema).optional(),
   isDeleted: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   updatedAt: z.lazy(() => SortOrderSchema).optional(),

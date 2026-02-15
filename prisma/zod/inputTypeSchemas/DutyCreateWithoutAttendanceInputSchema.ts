@@ -7,6 +7,8 @@ import { WorkGroupAssignmentCreateNestedManyWithoutDutyInputSchema } from './Wor
 import { SpecialLeaveAssignmentCreateNestedManyWithoutDutyInputSchema } from './SpecialLeaveAssignmentCreateNestedManyWithoutDutyInputSchema';
 import { IncidentCreateNestedManyWithoutDutyInputSchema } from './IncidentCreateNestedManyWithoutDutyInputSchema';
 import { OvertimeSummaryCreateNestedManyWithoutDutyInputSchema } from './OvertimeSummaryCreateNestedManyWithoutDutyInputSchema';
+import { AttendanceEventCreateNestedManyWithoutDutyInputSchema } from './AttendanceEventCreateNestedManyWithoutDutyInputSchema';
+import { DutyDayTypeCreateNestedManyWithoutDutyInputSchema } from './DutyDayTypeCreateNestedManyWithoutDutyInputSchema';
 
 export const DutyCreateWithoutAttendanceInputSchema: z.ZodType<Prisma.DutyCreateWithoutAttendanceInput> = z.strictObject({
   id: z.string().optional(),
@@ -24,6 +26,8 @@ export const DutyCreateWithoutAttendanceInputSchema: z.ZodType<Prisma.DutyCreate
   specialLeaveAssignments: z.lazy(() => SpecialLeaveAssignmentCreateNestedManyWithoutDutyInputSchema).optional(),
   incidents: z.lazy(() => IncidentCreateNestedManyWithoutDutyInputSchema).optional(),
   OvertimeSummary: z.lazy(() => OvertimeSummaryCreateNestedManyWithoutDutyInputSchema).optional(),
+  attendanceEvents: z.lazy(() => AttendanceEventCreateNestedManyWithoutDutyInputSchema).optional(),
+  dutyDayTypes: z.lazy(() => DutyDayTypeCreateNestedManyWithoutDutyInputSchema).optional(),
 });
 
 export default DutyCreateWithoutAttendanceInputSchema;

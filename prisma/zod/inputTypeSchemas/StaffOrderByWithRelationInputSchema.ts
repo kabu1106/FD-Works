@@ -10,6 +10,11 @@ import { SpecialLeaveAssignmentOrderByRelationAggregateInputSchema } from './Spe
 import { IncidentStaffOrderByRelationAggregateInputSchema } from './IncidentStaffOrderByRelationAggregateInputSchema';
 import { AttendanceOrderByRelationAggregateInputSchema } from './AttendanceOrderByRelationAggregateInputSchema';
 import { OvertimeSummaryOrderByRelationAggregateInputSchema } from './OvertimeSummaryOrderByRelationAggregateInputSchema';
+import { AttendanceEventOrderByRelationAggregateInputSchema } from './AttendanceEventOrderByRelationAggregateInputSchema';
+import { IncidentStaffEngagementOrderByRelationAggregateInputSchema } from './IncidentStaffEngagementOrderByRelationAggregateInputSchema';
+import { SubstituteHolidayOrderByRelationAggregateInputSchema } from './SubstituteHolidayOrderByRelationAggregateInputSchema';
+import { WeeklyDayOffOrderByRelationAggregateInputSchema } from './WeeklyDayOffOrderByRelationAggregateInputSchema';
+import { DutyDayTypeOrderByRelationAggregateInputSchema } from './DutyDayTypeOrderByRelationAggregateInputSchema';
 
 export const StaffOrderByWithRelationInputSchema: z.ZodType<Prisma.StaffOrderByWithRelationInput> = z.strictObject({
   id: z.lazy(() => SortOrderSchema).optional(),
@@ -25,6 +30,11 @@ export const StaffOrderByWithRelationInputSchema: z.ZodType<Prisma.StaffOrderByW
   IncidentStaff: z.lazy(() => IncidentStaffOrderByRelationAggregateInputSchema).optional(),
   Attendance: z.lazy(() => AttendanceOrderByRelationAggregateInputSchema).optional(),
   OvertimeSummary: z.lazy(() => OvertimeSummaryOrderByRelationAggregateInputSchema).optional(),
+  attendanceEvents: z.lazy(() => AttendanceEventOrderByRelationAggregateInputSchema).optional(),
+  incidentStaffEngagements: z.lazy(() => IncidentStaffEngagementOrderByRelationAggregateInputSchema).optional(),
+  substituteHolidays: z.lazy(() => SubstituteHolidayOrderByRelationAggregateInputSchema).optional(),
+  weeklyDayOffs: z.lazy(() => WeeklyDayOffOrderByRelationAggregateInputSchema).optional(),
+  dutyDayTypes: z.lazy(() => DutyDayTypeOrderByRelationAggregateInputSchema).optional(),
 });
 
 export default StaffOrderByWithRelationInputSchema;

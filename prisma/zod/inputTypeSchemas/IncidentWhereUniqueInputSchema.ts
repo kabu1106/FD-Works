@@ -6,8 +6,10 @@ import { StringFilterSchema } from './StringFilterSchema';
 import { IntFilterSchema } from './IntFilterSchema';
 import { IntNullableFilterSchema } from './IntNullableFilterSchema';
 import { StringNullableFilterSchema } from './StringNullableFilterSchema';
-import { BoolFilterSchema } from './BoolFilterSchema';
 import { DateTimeFilterSchema } from './DateTimeFilterSchema';
+import { EnumIncidentStatusFilterSchema } from './EnumIncidentStatusFilterSchema';
+import { IncidentStatusSchema } from './IncidentStatusSchema';
+import { BoolFilterSchema } from './BoolFilterSchema';
 import { DutyRelationFilterSchema } from './DutyRelationFilterSchema';
 import { DutyWhereInputSchema } from './DutyWhereInputSchema';
 import { IncidentCategoryRelationFilterSchema } from './IncidentCategoryRelationFilterSchema';
@@ -19,6 +21,7 @@ import { LocationWhereInputSchema } from './LocationWhereInputSchema';
 import { HospitalNullableRelationFilterSchema } from './HospitalNullableRelationFilterSchema';
 import { HospitalWhereInputSchema } from './HospitalWhereInputSchema';
 import { IncidentVehicleListRelationFilterSchema } from './IncidentVehicleListRelationFilterSchema';
+import { IncidentStaffEngagementListRelationFilterSchema } from './IncidentStaffEngagementListRelationFilterSchema';
 
 export const IncidentWhereUniqueInputSchema: z.ZodType<Prisma.IncidentWhereUniqueInput> = z.object({
   id: z.string(),
@@ -34,6 +37,8 @@ export const IncidentWhereUniqueInputSchema: z.ZodType<Prisma.IncidentWhereUniqu
   locationId: z.union([ z.lazy(() => IntFilterSchema), z.number().int() ]).optional(),
   destinationId: z.union([ z.lazy(() => IntNullableFilterSchema), z.number().int() ]).optional().nullable(),
   destinationName: z.union([ z.lazy(() => StringNullableFilterSchema), z.string() ]).optional().nullable(),
+  occurredAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
+  status: z.union([ z.lazy(() => EnumIncidentStatusFilterSchema), z.lazy(() => IncidentStatusSchema) ]).optional(),
   isDeleted: z.union([ z.lazy(() => BoolFilterSchema), z.boolean() ]).optional(),
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
@@ -43,6 +48,7 @@ export const IncidentWhereUniqueInputSchema: z.ZodType<Prisma.IncidentWhereUniqu
   location: z.union([ z.lazy(() => LocationRelationFilterSchema), z.lazy(() => LocationWhereInputSchema) ]).optional(),
   destination: z.union([ z.lazy(() => HospitalNullableRelationFilterSchema), z.lazy(() => HospitalWhereInputSchema) ]).optional().nullable(),
   vehicles: z.lazy(() => IncidentVehicleListRelationFilterSchema).optional(),
+  incidentStaffEngagements: z.lazy(() => IncidentStaffEngagementListRelationFilterSchema).optional(),
 }));
 
 export default IncidentWhereUniqueInputSchema;

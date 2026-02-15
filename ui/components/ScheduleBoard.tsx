@@ -1,7 +1,6 @@
 // ui/components/ScheduleBoard.tsx
   import { ScheduleDayProjection } from "@/projections/schedule-day/schedule-day.projection";
   import { useScheduleWithHistory } from "../hooks/useScheduleWithHistory";
-  import { WorkGroupCell } from "./WorkGroupCell";
   import { StaffSidebar } from "./StaffSidebar"; // 追加
   import { createCommand } from "@/domain/commands/command-factory";
   import { useKeyboardShortcut } from '../hooks/use-keyboard-shortcut';

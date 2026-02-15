@@ -50,6 +50,19 @@ model EventStore {
 }
 
 // ---------------------------------------------------------
+// Projection Management
+// ---------------------------------------------------------
+
+model ProjectionCheckpoint {
+  projectionName String   @id // 例: "IncidentReadModel"
+  lastEventId    String // 最後に処理した EventStore.id
+  lastEventAt    DateTime // 最後に処理したイベントの発生日時
+  updatedAt      DateTime @updatedAt
+
+  @@index([lastEventAt])
+}
+
+// ---------------------------------------------------------
 // NextAuth 必要モデル群 (Prisma Adapter 用)
 // ---------------------------------------------------------
 
@@ -279,10 +292,10 @@ model Duty {
   attendance              Attendance[]
   OvertimeSummary         OvertimeSummary[]
   attendanceEvents        AttendanceEvent[]
+  dutyDayTypes            DutyDayType[]
 
   @@unique([date, teamId])
   @@map("duties")
-  dutyDayTypes DutyDayType[]
 }
 
 model DutyDayType {
@@ -305,7 +318,6 @@ model DutyDayType {
   @@index([staffId, dayType])
   @@map("duty_day_types")
 }
-
 
 model WorkGroupAssignment {
   id          String   @id @default(uuid())
@@ -429,11 +441,10 @@ model SubstituteHoliday {
   @@map("substitute_holidays")
 }
 
-
 enum DayType {
-  WEEKDAY        // 平日
+  WEEKDAY // 平日
   WEEKLY_DAY_OFF // 週休日
-  HOLIDAY        // 祝日
+  HOLIDAY // 祝日
   SUBSTITUTE_HOLIDAY // 振替休日（祝日扱い）
 }
 
@@ -448,7 +459,7 @@ model OvertimeSlotResolved {
   minutes Int
 
   overtimeRateCategoryId Int
-  rateSnapshot Float
+  rateSnapshot           Float
 
   createdAt DateTime @default(now())
 
@@ -456,7 +467,6 @@ model OvertimeSlotResolved {
   @@index([overtimeRateCategoryId])
   @@map("overtime_slot_resolved")
 }
-
 
 // =======================
 // SpecialLeave Definition
@@ -488,15 +498,21 @@ model SpecialLeaveType {
 // =======================
 // Incident Definition
 // =======================
+enum IncidentStatus {
+  OPEN
+  CLOSED
+}
 
 model Incident {
-  id              String  @id @default(uuid())
+  id              String         @id @default(uuid())
   dutyId          String
   categoryId      Int
   typeId          Int
   locationId      Int
   destinationId   Int?
   destinationName String?
+  occurredAt      DateTime
+  status          IncidentStatus
 
   isDeleted Boolean @default(false)
 
@@ -788,4 +804,38 @@ model IncidentAllowanceSummary {
   allowanceType AllowanceType @relation(fields: [allowanceTypeId], references: [id])
 
   @@unique([incidentStaffId, allowanceTypeId, version])
+}
+
+// prisma/schema.prisma
+
+model IncidentReadModel {
+  id         String              @id // incidentId
+  dutyId     String
+  locationId Int
+  status     String // "OPEN", "CLOSED"
+  occurredAt DateTime
+  closedAt   DateTime?
+  vehicles   DispatchedVehicle[]
+  updatedAt  DateTime            @updatedAt
+}
+
+model DispatchedVehicle {
+  id           Int               @id @default(autoincrement())
+  incidentId   String
+  vehicleId    Int
+  dispatchedAt DateTime
+  returnedAt   DateTime?
+  incident     IncidentReadModel @relation(fields: [incidentId], references: [id])
+  staffs       StaffInVehicle[]
+
+  @@unique([incidentId, vehicleId])
+}
+
+model StaffInVehicle {
+  id                  Int               @id @default(autoincrement())
+  dispatchedVehicleId Int
+  staffId             Int
+  vehicle             DispatchedVehicle @relation(fields: [dispatchedVehicleId], references: [id])
+
+  @@unique([dispatchedVehicleId, staffId])
 }

@@ -1,11 +1,17 @@
 // src/infra/eventStore/EventStoreRepository.ts
-import { DutyEvent } from "@/domain/duty/duty-events";
+import { DomainEvent } from "@/domain/shared/domainEventrt";
+import { EventEnvelope } from "@/domain/shared/event-envelope";
+import { randomUUID } from "crypto";
 
-export interface EventStoreRepository {
-  load<TEvent>(aggregateId: string): Promise<TEvent[]>;
+export interface EventStoreRepository<TEvent> {
   append(
-    aggregateId: string,
+    streamId: string,
     aggregateType: string,
-    events: unknown[]
+    events: readonly TEvent[],
+    expectedVersion: number
   ): Promise<void>;
+
+  load(streamId: string): Promise<TEvent[]>;
 }
+
+

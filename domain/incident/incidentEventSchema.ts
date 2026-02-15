@@ -28,7 +28,7 @@ export const StaffBoardedSchema = z.object({
     incidentId: IncidentId,
     vehicleId: z.number().int(),
     staffId: z.number().int(),
-    boardedAt: z.string(),
+    //boardedAt: z.string(),
   }),
 });
 

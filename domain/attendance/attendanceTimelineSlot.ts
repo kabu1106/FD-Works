@@ -1,6 +1,6 @@
 // src/projection/attendance/AttendanceTimelineSlot.ts
 
-export type AttendanceSlotType = "work" | "break" | "incident";
+export type AttendanceSlotType = "work" | "break" ;
 
 export interface AttendanceTimelineSlot {
   dutyId: string;

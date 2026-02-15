@@ -2,15 +2,15 @@ import type { Prisma } from '@prisma/client';
 
 import { z } from 'zod';
 import { StringFieldUpdateOperationsInputSchema } from './StringFieldUpdateOperationsInputSchema';
-import { AttendanceTypeSchema } from './AttendanceTypeSchema';
-import { EnumAttendanceTypeFieldUpdateOperationsInputSchema } from './EnumAttendanceTypeFieldUpdateOperationsInputSchema';
+import { AttendanceEventTypeSchema } from './AttendanceEventTypeSchema';
+import { EnumAttendanceEventTypeFieldUpdateOperationsInputSchema } from './EnumAttendanceEventTypeFieldUpdateOperationsInputSchema';
 import { DateTimeFieldUpdateOperationsInputSchema } from './DateTimeFieldUpdateOperationsInputSchema';
 import { DepartmentUpdateOneRequiredWithoutAttendanceNestedInputSchema } from './DepartmentUpdateOneRequiredWithoutAttendanceNestedInputSchema';
 import { StaffUpdateOneRequiredWithoutAttendanceNestedInputSchema } from './StaffUpdateOneRequiredWithoutAttendanceNestedInputSchema';
 
 export const AttendanceUpdateWithoutDutyInputSchema: z.ZodType<Prisma.AttendanceUpdateWithoutDutyInput> = z.strictObject({
   id: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  type: z.union([ z.lazy(() => AttendanceTypeSchema), z.lazy(() => EnumAttendanceTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => AttendanceEventTypeSchema), z.lazy(() => EnumAttendanceEventTypeFieldUpdateOperationsInputSchema) ]).optional(),
   startTime: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   endTime: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),

@@ -19,7 +19,7 @@ export type IncidentCommand =
       incidentId: string;
       vehicleId: number;
       staffId: number;
-      boardedAt: string;
+      //boardedAt: string;
     }
   | {
       type: "ReturnVehicle";

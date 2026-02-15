@@ -7,6 +7,11 @@ import { SpecialLeaveAssignmentFindManyArgsSchema } from "../outputTypeSchemas/S
 import { IncidentStaffFindManyArgsSchema } from "../outputTypeSchemas/IncidentStaffFindManyArgsSchema"
 import { AttendanceFindManyArgsSchema } from "../outputTypeSchemas/AttendanceFindManyArgsSchema"
 import { OvertimeSummaryFindManyArgsSchema } from "../outputTypeSchemas/OvertimeSummaryFindManyArgsSchema"
+import { AttendanceEventFindManyArgsSchema } from "../outputTypeSchemas/AttendanceEventFindManyArgsSchema"
+import { IncidentStaffEngagementFindManyArgsSchema } from "../outputTypeSchemas/IncidentStaffEngagementFindManyArgsSchema"
+import { SubstituteHolidayFindManyArgsSchema } from "../outputTypeSchemas/SubstituteHolidayFindManyArgsSchema"
+import { WeeklyDayOffFindManyArgsSchema } from "../outputTypeSchemas/WeeklyDayOffFindManyArgsSchema"
+import { DutyDayTypeFindManyArgsSchema } from "../outputTypeSchemas/DutyDayTypeFindManyArgsSchema"
 import { StaffCountOutputTypeArgsSchema } from "../outputTypeSchemas/StaffCountOutputTypeArgsSchema"
 
 export const StaffIncludeSchema: z.ZodType<Prisma.StaffInclude> = z.object({
@@ -17,6 +22,11 @@ export const StaffIncludeSchema: z.ZodType<Prisma.StaffInclude> = z.object({
   IncidentStaff: z.union([z.boolean(),z.lazy(() => IncidentStaffFindManyArgsSchema)]).optional(),
   Attendance: z.union([z.boolean(),z.lazy(() => AttendanceFindManyArgsSchema)]).optional(),
   OvertimeSummary: z.union([z.boolean(),z.lazy(() => OvertimeSummaryFindManyArgsSchema)]).optional(),
+  attendanceEvents: z.union([z.boolean(),z.lazy(() => AttendanceEventFindManyArgsSchema)]).optional(),
+  incidentStaffEngagements: z.union([z.boolean(),z.lazy(() => IncidentStaffEngagementFindManyArgsSchema)]).optional(),
+  substituteHolidays: z.union([z.boolean(),z.lazy(() => SubstituteHolidayFindManyArgsSchema)]).optional(),
+  weeklyDayOffs: z.union([z.boolean(),z.lazy(() => WeeklyDayOffFindManyArgsSchema)]).optional(),
+  dutyDayTypes: z.union([z.boolean(),z.lazy(() => DutyDayTypeFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => StaffCountOutputTypeArgsSchema)]).optional(),
 }).strict();
 

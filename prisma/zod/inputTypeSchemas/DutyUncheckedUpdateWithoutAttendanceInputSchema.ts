@@ -13,6 +13,8 @@ import { WorkGroupAssignmentUncheckedUpdateManyWithoutDutyNestedInputSchema } fr
 import { SpecialLeaveAssignmentUncheckedUpdateManyWithoutDutyNestedInputSchema } from './SpecialLeaveAssignmentUncheckedUpdateManyWithoutDutyNestedInputSchema';
 import { IncidentUncheckedUpdateManyWithoutDutyNestedInputSchema } from './IncidentUncheckedUpdateManyWithoutDutyNestedInputSchema';
 import { OvertimeSummaryUncheckedUpdateManyWithoutDutyNestedInputSchema } from './OvertimeSummaryUncheckedUpdateManyWithoutDutyNestedInputSchema';
+import { AttendanceEventUncheckedUpdateManyWithoutDutyNestedInputSchema } from './AttendanceEventUncheckedUpdateManyWithoutDutyNestedInputSchema';
+import { DutyDayTypeUncheckedUpdateManyWithoutDutyNestedInputSchema } from './DutyDayTypeUncheckedUpdateManyWithoutDutyNestedInputSchema';
 
 export const DutyUncheckedUpdateWithoutAttendanceInputSchema: z.ZodType<Prisma.DutyUncheckedUpdateWithoutAttendanceInput> = z.strictObject({
   id: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
@@ -30,6 +32,8 @@ export const DutyUncheckedUpdateWithoutAttendanceInputSchema: z.ZodType<Prisma.D
   specialLeaveAssignments: z.lazy(() => SpecialLeaveAssignmentUncheckedUpdateManyWithoutDutyNestedInputSchema).optional(),
   incidents: z.lazy(() => IncidentUncheckedUpdateManyWithoutDutyNestedInputSchema).optional(),
   OvertimeSummary: z.lazy(() => OvertimeSummaryUncheckedUpdateManyWithoutDutyNestedInputSchema).optional(),
+  attendanceEvents: z.lazy(() => AttendanceEventUncheckedUpdateManyWithoutDutyNestedInputSchema).optional(),
+  dutyDayTypes: z.lazy(() => DutyDayTypeUncheckedUpdateManyWithoutDutyNestedInputSchema).optional(),
 });
 
 export default DutyUncheckedUpdateWithoutAttendanceInputSchema;

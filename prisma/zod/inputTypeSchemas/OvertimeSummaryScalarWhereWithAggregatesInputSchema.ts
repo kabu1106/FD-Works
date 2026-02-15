@@ -13,11 +13,10 @@ export const OvertimeSummaryScalarWhereWithAggregatesInputSchema: z.ZodType<Pris
   id: z.union([ z.lazy(() => StringWithAggregatesFilterSchema), z.string() ]).optional(),
   dutyId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema), z.string() ]).optional(),
   staffId: z.union([ z.lazy(() => IntWithAggregatesFilterSchema), z.number() ]).optional(),
-  version: z.union([ z.lazy(() => IntWithAggregatesFilterSchema), z.number() ]).optional(),
+  calculationVersion: z.union([ z.lazy(() => IntWithAggregatesFilterSchema), z.number() ]).optional(),
   totalMinutes: z.union([ z.lazy(() => IntWithAggregatesFilterSchema), z.number() ]).optional(),
   isFinalized: z.union([ z.lazy(() => BoolWithAggregatesFilterSchema), z.boolean() ]).optional(),
-  createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema), z.coerce.date() ]).optional(),
-  updatedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema), z.coerce.date() ]).optional(),
+  calculatedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema), z.coerce.date() ]).optional(),
 });
 
 export default OvertimeSummaryScalarWhereWithAggregatesInputSchema;

@@ -4,6 +4,7 @@ import { AttendanceEvent } from "./attendance-events";
 type AttendanceState = "notStarted" | "working" | "onBreak" | "ended";
 
 export class AttendanceAggregate extends AggregateRoot<AttendanceEvent> {
+  protected readonly aggregateType = "Attendance";
   private dutyId!: string;
   private staffId!: number;
   private state: AttendanceState = "notStarted";

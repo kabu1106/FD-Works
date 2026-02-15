@@ -9,6 +9,7 @@ import { IncidentTypeOrderByWithRelationInputSchema } from './IncidentTypeOrderB
 import { LocationOrderByWithRelationInputSchema } from './LocationOrderByWithRelationInputSchema';
 import { HospitalOrderByWithRelationInputSchema } from './HospitalOrderByWithRelationInputSchema';
 import { IncidentVehicleOrderByRelationAggregateInputSchema } from './IncidentVehicleOrderByRelationAggregateInputSchema';
+import { IncidentStaffEngagementOrderByRelationAggregateInputSchema } from './IncidentStaffEngagementOrderByRelationAggregateInputSchema';
 
 export const IncidentOrderByWithRelationInputSchema: z.ZodType<Prisma.IncidentOrderByWithRelationInput> = z.strictObject({
   id: z.lazy(() => SortOrderSchema).optional(),
@@ -18,6 +19,8 @@ export const IncidentOrderByWithRelationInputSchema: z.ZodType<Prisma.IncidentOr
   locationId: z.lazy(() => SortOrderSchema).optional(),
   destinationId: z.union([ z.lazy(() => SortOrderSchema), z.lazy(() => SortOrderInputSchema) ]).optional(),
   destinationName: z.union([ z.lazy(() => SortOrderSchema), z.lazy(() => SortOrderInputSchema) ]).optional(),
+  occurredAt: z.lazy(() => SortOrderSchema).optional(),
+  status: z.lazy(() => SortOrderSchema).optional(),
   isDeleted: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   updatedAt: z.lazy(() => SortOrderSchema).optional(),
@@ -27,6 +30,7 @@ export const IncidentOrderByWithRelationInputSchema: z.ZodType<Prisma.IncidentOr
   location: z.lazy(() => LocationOrderByWithRelationInputSchema).optional(),
   destination: z.lazy(() => HospitalOrderByWithRelationInputSchema).optional(),
   vehicles: z.lazy(() => IncidentVehicleOrderByRelationAggregateInputSchema).optional(),
+  incidentStaffEngagements: z.lazy(() => IncidentStaffEngagementOrderByRelationAggregateInputSchema).optional(),
 });
 
 export default IncidentOrderByWithRelationInputSchema;

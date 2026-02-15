@@ -1,0 +1,151 @@
+diff --git a/projections/overtime/__test__/overtimeSlotResolvedProjection.test.ts b/projections/overtime/__test__/overtimeSlotResolvedProjection.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..61a1ce36f739f1c39b90cfe3ec99a1b813dc1e8a
+--- /dev/null
++++ b/projections/overtime/__test__/overtimeSlotResolvedProjection.test.ts
+@@ -0,0 +1,76 @@
++import { AttendanceTimelineSlot } from '@/domain/attendance/attendanceTimelineSlot'
++import { OvertimeSlotResolvedProjection } from '../overtimeSlotResolvedProjection'
++
++describe('OvertimeSlotResolvedProjection', () => {
++  it('DUTY24の仮眠時間と部分的に重なる超勤は重なり部分のみ除外する', () => {
++    const projection = new OvertimeSlotResolvedProjection()
++
++    const slots: AttendanceTimelineSlot[] = [
++      {
++        dutyId: 'duty-1',
++        staffId: 10,
++        type: 'work',
++        startAt: '2026-02-01T07:00:00.000Z',
++        endAt: '2026-02-01T09:00:00.000Z',
++      },
++    ]
++
++    const result = projection.resolve(
++      slots,
++      '2026-02-01',
++      'DUTY24',
++      {
++        startAt: '2026-02-01T07:30:00.000Z',
++        endAt: '2026-02-01T08:30:00.000Z',
++      }
++    )
++
++    expect(result).toEqual([
++      {
++        dutyId: 'duty-1',
++        staffId: 10,
++        startAt: '2026-02-01T07:00:00.000Z',
++        endAt: '2026-02-01T07:30:00.000Z',
++      },
++    ])
++  })
++
++  it('仮眠時間が超勤区間の中間にある場合は前後2つに分割する', () => {
++    const projection = new OvertimeSlotResolvedProjection()
++
++    const slots: AttendanceTimelineSlot[] = [
++      {
++        dutyId: 'duty-2',
++        staffId: 20,
++        type: 'work',
++        startAt: '2026-02-02T07:00:00.000Z',
++        endAt: '2026-02-02T10:00:00.000Z',
++      },
++    ]
++
++    const result = projection.resolve(
++      slots,
++      '2026-02-02',
++      'DUTY24',
++      {
++        startAt: '2026-02-02T07:30:00.000Z',
++        endAt: '2026-02-02T08:15:00.000Z',
++      }
++    )
++
++    expect(result).toEqual([
++      {
++        dutyId: 'duty-2',
++        staffId: 20,
++        startAt: '2026-02-02T07:00:00.000Z',
++        endAt: '2026-02-02T07:30:00.000Z',
++      },
++      {
++        dutyId: 'duty-2',
++        staffId: 20,
++        startAt: '2026-02-02T08:15:00.000Z',
++        endAt: '2026-02-02T08:30:00.000Z',
++      },
++    ])
++  })
++})
+diff --git a/projections/overtime/overtimeSlotResolvedProjection.ts b/projections/overtime/overtimeSlotResolvedProjection.ts
+index 9cbbed18cfa72ddc2e0b95f48bb179666ad9eb3a..30b684efdcf1c39ec7dbb6ba044ca6fd9efcfa9c 100644
+--- a/projections/overtime/overtimeSlotResolvedProjection.ts
++++ b/projections/overtime/overtimeSlotResolvedProjection.ts
+@@ -86,36 +86,60 @@ export class OvertimeSlotResolvedProjection {
+ 
+     if (start < scheduledStart) {
+       ranges.push({
+         start: start.toISOString(),
+         end: new Date(Math.min(end.getTime(), scheduledStart.getTime())).toISOString(),
+       });
+     }
+ 
+     if (end > scheduledEnd) {
+       ranges.push({
+         start: new Date(Math.max(start.getTime(), scheduledEnd.getTime())).toISOString(),
+         end: end.toISOString(),
+       });
+     }
+ 
+     return ranges;
+   }
+ 
+   private removeSleepOverlap(
+     slot: AttendanceTimelineSlot,
+     sleep: WorkGroupSleepWindow
+   ) {
+     const sleepStart = new Date(sleep.startAt);
+     const sleepEnd = new Date(sleep.endAt);
+ 
+-    this.overtimeSlots = this.overtimeSlots.filter((o) => {
++    this.overtimeSlots = this.overtimeSlots.flatMap((o) => {
++      if (o.dutyId !== slot.dutyId || o.staffId !== slot.staffId) {
++        return [o];
++      }
++
+       const oStart = new Date(o.startAt);
+       const oEnd = new Date(o.endAt);
++      const hasOverlap = oStart < sleepEnd && oEnd > sleepStart;
++
++      if (!hasOverlap) {
++        return [o];
++      }
++
++      const chunks: OvertimeSlot[] = [];
+ 
+-      const overlap =
+-        oStart < sleepEnd && oEnd > sleepStart;
++      if (oStart < sleepStart) {
++        chunks.push({
++          ...o,
++          startAt: oStart.toISOString(),
++          endAt: sleepStart.toISOString(),
++        });
++      }
++
++      if (sleepEnd < oEnd) {
++        chunks.push({
++          ...o,
++          startAt: sleepEnd.toISOString(),
++          endAt: oEnd.toISOString(),
++        });
++      }
+ 
+-      return !overlap;
++      return chunks;
+     });
+   }
+ }

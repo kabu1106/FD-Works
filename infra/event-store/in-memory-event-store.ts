@@ -1,55 +1,52 @@
-// infra/event-store/in-memory-event-store.ts
-import { EventStore } from '@/infra/event-store/eventStore' // パスは適宜調整してください
-import { EventEnvelope } from '@/domain/shared/event-envelope'
-import { OptimisticLockError } from '@/domain/errors/OptimisticLockError'
+import { EventEnvelope } from "@/domain/shared/event-envelope";
+import { randomUUID } from "crypto";
+import { EventStoreRepository } from "./EventStoreRepository";
+import { DomainEvent } from "@/domain/shared/domainEventrt";
+import { OptimisticLockError } from '@/domain/errors/OptimisticLockError';
 
-export class InMemoryEventStore<
-  E extends { type: string }
-> implements EventStore<E> {
-
-  private events: EventEnvelope<E>[] = []
+export class InMemoryEventStoreRepository<TEvent extends DomainEvent>
+  implements EventStoreRepository<TEvent>
+{
+  private readonly store = new Map<string, EventEnvelope<TEvent>[]>();
 
   async append(
-    aggregateId: string,
+    streamId: string,
     aggregateType: string,
-    expectedVersion: number,
-    events: Omit<
-      EventEnvelope<E>,
-      'aggregateId' | 'aggregateType' | 'aggregateVersion'
-    >[]
-  ): Promise<EventEnvelope<E>[]> {
-
-    // ① 現在の最新バージョンを確認（楽観ロック）
-    const currentEvents = this.events.filter(e => e.aggregateId === aggregateId)
-    const actualVersion = currentEvents.length > 0 
-      ? Math.max(...currentEvents.map(e => e.aggregateVersion))
-      : 0
-
-    if (actualVersion !== expectedVersion) {
-      throw new OptimisticLockError(aggregateId, expectedVersion, actualVersion)
+    events: readonly TEvent[],
+    expectedVersion: number
+  ): Promise<void> {
+    const stream = this.store.get(streamId) ?? [];
+  
+    const currentVersion =
+      stream.length > 0
+        ? stream[stream.length - 1].aggregateVersion
+        : 0;
+  
+    if (currentVersion !== expectedVersion) {
+      throw new OptimisticLockError(
+        streamId,
+        expectedVersion,
+        currentVersion,
+      );
     }
-
-    // ② 不足している情報を補完して Envelope（封筒）を作成
-    let nextVersion = actualVersion
-    const newEnvelopes: EventEnvelope<E>[] = events.map(e => {
-      nextVersion += 1
-      return {
-        ...e,
-        aggregateId,
-        aggregateType,
-        aggregateVersion: nextVersion,
-      } as EventEnvelope<E>
-    })
-
-    // ③ メモリに保存
-    this.events.push(...newEnvelopes)
-
-    return newEnvelopes
+  
+    const newEnvelopes = events.map((event, index) => ({
+      eventId: crypto.randomUUID(),
+      aggregateId: streamId,
+      aggregateType,
+      occurredAt: new Date().toISOString(),
+      event,
+      causedBy: "system",
+      aggregateVersion: currentVersion + index + 1,
+      schemaVersion: 1,
+    }));
+  
+    this.store.set(streamId, [...stream, ...newEnvelopes]);
   }
+  
 
-  async load(aggregateId: string): Promise<EventEnvelope<E>[]> {
-    return this.events
-      .filter(e => e.aggregateId === aggregateId)
-      .sort((a, b) => a.aggregateVersion - b.aggregateVersion) // バージョン順に並び替え
+  async load(streamId: string): Promise<TEvent[]> {
+    const stream = this.store.get(streamId) ?? [];
+    return stream.map((e) => e.event);
   }
 }

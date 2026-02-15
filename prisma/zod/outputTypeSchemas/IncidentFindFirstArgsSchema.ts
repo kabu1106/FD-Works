@@ -11,6 +11,7 @@ import { IncidentTypeArgsSchema } from "../outputTypeSchemas/IncidentTypeArgsSch
 import { LocationArgsSchema } from "../outputTypeSchemas/LocationArgsSchema"
 import { HospitalArgsSchema } from "../outputTypeSchemas/HospitalArgsSchema"
 import { IncidentVehicleFindManyArgsSchema } from "../outputTypeSchemas/IncidentVehicleFindManyArgsSchema"
+import { IncidentStaffEngagementFindManyArgsSchema } from "../outputTypeSchemas/IncidentStaffEngagementFindManyArgsSchema"
 import { IncidentCountOutputTypeArgsSchema } from "../outputTypeSchemas/IncidentCountOutputTypeArgsSchema"
 // Select schema needs to be in file to prevent circular imports
 //------------------------------------------------------
@@ -23,6 +24,8 @@ export const IncidentSelectSchema: z.ZodType<Prisma.IncidentSelect> = z.object({
   locationId: z.boolean().optional(),
   destinationId: z.boolean().optional(),
   destinationName: z.boolean().optional(),
+  occurredAt: z.boolean().optional(),
+  status: z.boolean().optional(),
   isDeleted: z.boolean().optional(),
   createdAt: z.boolean().optional(),
   updatedAt: z.boolean().optional(),
@@ -32,6 +35,7 @@ export const IncidentSelectSchema: z.ZodType<Prisma.IncidentSelect> = z.object({
   location: z.union([z.boolean(),z.lazy(() => LocationArgsSchema)]).optional(),
   destination: z.union([z.boolean(),z.lazy(() => HospitalArgsSchema)]).optional(),
   vehicles: z.union([z.boolean(),z.lazy(() => IncidentVehicleFindManyArgsSchema)]).optional(),
+  incidentStaffEngagements: z.union([z.boolean(),z.lazy(() => IncidentStaffEngagementFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => IncidentCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 

@@ -2,7 +2,6 @@
 import { AttendanceTimelineSlot } from "@/domain/attendance/attendanceTimelineSlot";
 import { OvertimeSlot } from "./overTime";
 
-
 export type DutyDayType = "DUTY24" | "DAYSHIFT";
 
 export interface WorkGroupSleepWindow {
@@ -11,49 +10,51 @@ export interface WorkGroupSleepWindow {
 }
 
 export class OvertimeSlotResolvedProjection {
-  private overtimeSlots: OvertimeSlot[] = [];
-
   resolve(
     slots: AttendanceTimelineSlot[],
     dutyDate: string,
     dutyType: DutyDayType,
     sleepWindow?: WorkGroupSleepWindow
   ): OvertimeSlot[] {
-    this.overtimeSlots = [];
-
+    const overtimeSlots: OvertimeSlot[] = [];
     const scheduled = this.getScheduledWindow(dutyDate, dutyType);
 
     for (const slot of slots) {
       if (slot.type === "break") continue;
       if (!slot.endAt) continue;
 
-      const overtimeRanges = this.extractOutsideRange(
+      // ① 所定時間外
+      const outsideScheduled = this.extractOutsideRange(
         slot.startAt,
         slot.endAt,
         scheduled.start,
         scheduled.end
       );
 
-      for (const range of overtimeRanges) {
-        this.overtimeSlots.push({
+      // ② 仮眠時間（DUTY24のみ）
+      const sleepRanges =
+        dutyType === "DUTY24" && sleepWindow
+          ? this.extractOverlapRange(
+              slot.startAt,
+              slot.endAt,
+              new Date(sleepWindow.startAt),
+              new Date(sleepWindow.endAt)
+            )
+          : [];
+
+      const allRanges = [...outsideScheduled, ...sleepRanges];
+
+      for (const range of allRanges) {
+        overtimeSlots.push({
           dutyId: slot.dutyId,
           staffId: slot.staffId,
           startAt: range.start,
           endAt: range.end,
         });
       }
-
-      // DUTY24の場合は仮眠時間も除外
-      if (dutyType === "DUTY24" && sleepWindow) {
-        this.removeSleepOverlap(slot, sleepWindow);
-      }
     }
 
-    return this.overtimeSlots;
-  }
-
-  reset() {
-    this.overtimeSlots = [];
+    return overtimeSlots;
   }
 
   // =====================
@@ -61,14 +62,13 @@ export class OvertimeSlotResolvedProjection {
   // =====================
 
   private getScheduledWindow(dutyDate: string, dutyType: DutyDayType) {
-    const base = new Date(`${dutyDate}T08:30:00`);
-
+    const base = new Date(`${dutyDate}T08:30:00.000Z`);
+  
     if (dutyType === "DAYSHIFT") {
-      const end = new Date(`${dutyDate}T17:15:00`);
+      const end = new Date(`${dutyDate}T17:15:00.000Z`);
       return { start: base, end };
     }
-
-    // DUTY24
+  
     const end = new Date(base.getTime() + 24 * 60 * 60 * 1000);
     return { start: base, end };
   }
@@ -87,13 +87,17 @@ export class OvertimeSlotResolvedProjection {
     if (start < scheduledStart) {
       ranges.push({
         start: start.toISOString(),
-        end: new Date(Math.min(end.getTime(), scheduledStart.getTime())).toISOString(),
+        end: new Date(
+          Math.min(end.getTime(), scheduledStart.getTime())
+        ).toISOString(),
       });
     }
 
     if (end > scheduledEnd) {
       ranges.push({
-        start: new Date(Math.max(start.getTime(), scheduledEnd.getTime())).toISOString(),
+        start: new Date(
+          Math.max(start.getTime(), scheduledEnd.getTime())
+        ).toISOString(),
         end: end.toISOString(),
       });
     }
@@ -101,21 +105,31 @@ export class OvertimeSlotResolvedProjection {
     return ranges;
   }
 
-  private removeSleepOverlap(
-    slot: AttendanceTimelineSlot,
-    sleep: WorkGroupSleepWindow
+  private extractOverlapRange(
+    startAt: string,
+    endAt: string,
+    windowStart: Date,
+    windowEnd: Date
   ) {
-    const sleepStart = new Date(sleep.startAt);
-    const sleepEnd = new Date(sleep.endAt);
+    const start = new Date(startAt);
+    const end = new Date(endAt);
 
-    this.overtimeSlots = this.overtimeSlots.filter((o) => {
-      const oStart = new Date(o.startAt);
-      const oEnd = new Date(o.endAt);
+    const overlapStart = new Date(
+      Math.max(start.getTime(), windowStart.getTime())
+    );
+    const overlapEnd = new Date(
+      Math.min(end.getTime(), windowEnd.getTime())
+    );
 
-      const overlap =
-        oStart < sleepEnd && oEnd > sleepStart;
+    if (overlapStart < overlapEnd) {
+      return [
+        {
+          start: overlapStart.toISOString(),
+          end: overlapEnd.toISOString(),
+        },
+      ];
+    }
 
-      return !overlap;
-    });
+    return [];
   }
 }

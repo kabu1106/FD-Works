@@ -13,11 +13,10 @@ export const OvertimeSummaryScalarWhereInputSchema: z.ZodType<Prisma.OvertimeSum
   id: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
   dutyId: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
   staffId: z.union([ z.lazy(() => IntFilterSchema), z.number() ]).optional(),
-  version: z.union([ z.lazy(() => IntFilterSchema), z.number() ]).optional(),
+  calculationVersion: z.union([ z.lazy(() => IntFilterSchema), z.number() ]).optional(),
   totalMinutes: z.union([ z.lazy(() => IntFilterSchema), z.number() ]).optional(),
   isFinalized: z.union([ z.lazy(() => BoolFilterSchema), z.boolean() ]).optional(),
-  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
-  updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
+  calculatedAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
 });
 
 export default OvertimeSummaryScalarWhereInputSchema;

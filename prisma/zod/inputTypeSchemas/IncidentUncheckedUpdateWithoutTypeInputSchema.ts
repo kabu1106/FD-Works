@@ -5,9 +5,12 @@ import { StringFieldUpdateOperationsInputSchema } from './StringFieldUpdateOpera
 import { IntFieldUpdateOperationsInputSchema } from './IntFieldUpdateOperationsInputSchema';
 import { NullableIntFieldUpdateOperationsInputSchema } from './NullableIntFieldUpdateOperationsInputSchema';
 import { NullableStringFieldUpdateOperationsInputSchema } from './NullableStringFieldUpdateOperationsInputSchema';
-import { BoolFieldUpdateOperationsInputSchema } from './BoolFieldUpdateOperationsInputSchema';
 import { DateTimeFieldUpdateOperationsInputSchema } from './DateTimeFieldUpdateOperationsInputSchema';
+import { IncidentStatusSchema } from './IncidentStatusSchema';
+import { EnumIncidentStatusFieldUpdateOperationsInputSchema } from './EnumIncidentStatusFieldUpdateOperationsInputSchema';
+import { BoolFieldUpdateOperationsInputSchema } from './BoolFieldUpdateOperationsInputSchema';
 import { IncidentVehicleUncheckedUpdateManyWithoutIncidentNestedInputSchema } from './IncidentVehicleUncheckedUpdateManyWithoutIncidentNestedInputSchema';
+import { IncidentStaffEngagementUncheckedUpdateManyWithoutIncidentNestedInputSchema } from './IncidentStaffEngagementUncheckedUpdateManyWithoutIncidentNestedInputSchema';
 
 export const IncidentUncheckedUpdateWithoutTypeInputSchema: z.ZodType<Prisma.IncidentUncheckedUpdateWithoutTypeInput> = z.strictObject({
   id: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
@@ -16,10 +19,13 @@ export const IncidentUncheckedUpdateWithoutTypeInputSchema: z.ZodType<Prisma.Inc
   locationId: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
   destinationId: z.union([ z.number().int(),z.lazy(() => NullableIntFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   destinationName: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  occurredAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  status: z.union([ z.lazy(() => IncidentStatusSchema), z.lazy(() => EnumIncidentStatusFieldUpdateOperationsInputSchema) ]).optional(),
   isDeleted: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   vehicles: z.lazy(() => IncidentVehicleUncheckedUpdateManyWithoutIncidentNestedInputSchema).optional(),
+  incidentStaffEngagements: z.lazy(() => IncidentStaffEngagementUncheckedUpdateManyWithoutIncidentNestedInputSchema).optional(),
 });
 
 export default IncidentUncheckedUpdateWithoutTypeInputSchema;

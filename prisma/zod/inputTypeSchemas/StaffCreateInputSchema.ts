@@ -8,6 +8,11 @@ import { SpecialLeaveAssignmentCreateNestedManyWithoutStaffInputSchema } from '.
 import { IncidentStaffCreateNestedManyWithoutStaffInputSchema } from './IncidentStaffCreateNestedManyWithoutStaffInputSchema';
 import { AttendanceCreateNestedManyWithoutStaffInputSchema } from './AttendanceCreateNestedManyWithoutStaffInputSchema';
 import { OvertimeSummaryCreateNestedManyWithoutStaffInputSchema } from './OvertimeSummaryCreateNestedManyWithoutStaffInputSchema';
+import { AttendanceEventCreateNestedManyWithoutStaffInputSchema } from './AttendanceEventCreateNestedManyWithoutStaffInputSchema';
+import { IncidentStaffEngagementCreateNestedManyWithoutStaffInputSchema } from './IncidentStaffEngagementCreateNestedManyWithoutStaffInputSchema';
+import { SubstituteHolidayCreateNestedManyWithoutStaffInputSchema } from './SubstituteHolidayCreateNestedManyWithoutStaffInputSchema';
+import { WeeklyDayOffCreateNestedManyWithoutStaffInputSchema } from './WeeklyDayOffCreateNestedManyWithoutStaffInputSchema';
+import { DutyDayTypeCreateNestedManyWithoutStaffInputSchema } from './DutyDayTypeCreateNestedManyWithoutStaffInputSchema';
 
 export const StaffCreateInputSchema: z.ZodType<Prisma.StaffCreateInput> = z.strictObject({
   staffNo: z.string(),
@@ -21,6 +26,11 @@ export const StaffCreateInputSchema: z.ZodType<Prisma.StaffCreateInput> = z.stri
   IncidentStaff: z.lazy(() => IncidentStaffCreateNestedManyWithoutStaffInputSchema).optional(),
   Attendance: z.lazy(() => AttendanceCreateNestedManyWithoutStaffInputSchema).optional(),
   OvertimeSummary: z.lazy(() => OvertimeSummaryCreateNestedManyWithoutStaffInputSchema).optional(),
+  attendanceEvents: z.lazy(() => AttendanceEventCreateNestedManyWithoutStaffInputSchema).optional(),
+  incidentStaffEngagements: z.lazy(() => IncidentStaffEngagementCreateNestedManyWithoutStaffInputSchema).optional(),
+  substituteHolidays: z.lazy(() => SubstituteHolidayCreateNestedManyWithoutStaffInputSchema).optional(),
+  weeklyDayOffs: z.lazy(() => WeeklyDayOffCreateNestedManyWithoutStaffInputSchema).optional(),
+  dutyDayTypes: z.lazy(() => DutyDayTypeCreateNestedManyWithoutStaffInputSchema).optional(),
 });
 
 export default StaffCreateInputSchema;

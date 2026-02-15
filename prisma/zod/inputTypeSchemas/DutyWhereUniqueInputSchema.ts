@@ -18,6 +18,8 @@ import { SpecialLeaveAssignmentListRelationFilterSchema } from './SpecialLeaveAs
 import { IncidentListRelationFilterSchema } from './IncidentListRelationFilterSchema';
 import { AttendanceListRelationFilterSchema } from './AttendanceListRelationFilterSchema';
 import { OvertimeSummaryListRelationFilterSchema } from './OvertimeSummaryListRelationFilterSchema';
+import { AttendanceEventListRelationFilterSchema } from './AttendanceEventListRelationFilterSchema';
+import { DutyDayTypeListRelationFilterSchema } from './DutyDayTypeListRelationFilterSchema';
 
 export const DutyWhereUniqueInputSchema: z.ZodType<Prisma.DutyWhereUniqueInput> = z.union([
   z.object({
@@ -53,6 +55,8 @@ export const DutyWhereUniqueInputSchema: z.ZodType<Prisma.DutyWhereUniqueInput> 
   incidents: z.lazy(() => IncidentListRelationFilterSchema).optional(),
   attendance: z.lazy(() => AttendanceListRelationFilterSchema).optional(),
   OvertimeSummary: z.lazy(() => OvertimeSummaryListRelationFilterSchema).optional(),
+  attendanceEvents: z.lazy(() => AttendanceEventListRelationFilterSchema).optional(),
+  dutyDayTypes: z.lazy(() => DutyDayTypeListRelationFilterSchema).optional(),
 }));
 
 export default DutyWhereUniqueInputSchema;

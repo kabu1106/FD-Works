@@ -14,6 +14,11 @@ import { SpecialLeaveAssignmentListRelationFilterSchema } from './SpecialLeaveAs
 import { IncidentStaffListRelationFilterSchema } from './IncidentStaffListRelationFilterSchema';
 import { AttendanceListRelationFilterSchema } from './AttendanceListRelationFilterSchema';
 import { OvertimeSummaryListRelationFilterSchema } from './OvertimeSummaryListRelationFilterSchema';
+import { AttendanceEventListRelationFilterSchema } from './AttendanceEventListRelationFilterSchema';
+import { IncidentStaffEngagementListRelationFilterSchema } from './IncidentStaffEngagementListRelationFilterSchema';
+import { SubstituteHolidayListRelationFilterSchema } from './SubstituteHolidayListRelationFilterSchema';
+import { WeeklyDayOffListRelationFilterSchema } from './WeeklyDayOffListRelationFilterSchema';
+import { DutyDayTypeListRelationFilterSchema } from './DutyDayTypeListRelationFilterSchema';
 
 export const StaffWhereInputSchema: z.ZodType<Prisma.StaffWhereInput> = z.strictObject({
   AND: z.union([ z.lazy(() => StaffWhereInputSchema), z.lazy(() => StaffWhereInputSchema).array() ]).optional(),
@@ -32,6 +37,11 @@ export const StaffWhereInputSchema: z.ZodType<Prisma.StaffWhereInput> = z.strict
   IncidentStaff: z.lazy(() => IncidentStaffListRelationFilterSchema).optional(),
   Attendance: z.lazy(() => AttendanceListRelationFilterSchema).optional(),
   OvertimeSummary: z.lazy(() => OvertimeSummaryListRelationFilterSchema).optional(),
+  attendanceEvents: z.lazy(() => AttendanceEventListRelationFilterSchema).optional(),
+  incidentStaffEngagements: z.lazy(() => IncidentStaffEngagementListRelationFilterSchema).optional(),
+  substituteHolidays: z.lazy(() => SubstituteHolidayListRelationFilterSchema).optional(),
+  weeklyDayOffs: z.lazy(() => WeeklyDayOffListRelationFilterSchema).optional(),
+  dutyDayTypes: z.lazy(() => DutyDayTypeListRelationFilterSchema).optional(),
 });
 
 export default StaffWhereInputSchema;

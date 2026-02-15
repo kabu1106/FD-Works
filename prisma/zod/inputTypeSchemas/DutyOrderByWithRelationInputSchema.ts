@@ -9,6 +9,8 @@ import { SpecialLeaveAssignmentOrderByRelationAggregateInputSchema } from './Spe
 import { IncidentOrderByRelationAggregateInputSchema } from './IncidentOrderByRelationAggregateInputSchema';
 import { AttendanceOrderByRelationAggregateInputSchema } from './AttendanceOrderByRelationAggregateInputSchema';
 import { OvertimeSummaryOrderByRelationAggregateInputSchema } from './OvertimeSummaryOrderByRelationAggregateInputSchema';
+import { AttendanceEventOrderByRelationAggregateInputSchema } from './AttendanceEventOrderByRelationAggregateInputSchema';
+import { DutyDayTypeOrderByRelationAggregateInputSchema } from './DutyDayTypeOrderByRelationAggregateInputSchema';
 
 export const DutyOrderByWithRelationInputSchema: z.ZodType<Prisma.DutyOrderByWithRelationInput> = z.strictObject({
   id: z.lazy(() => SortOrderSchema).optional(),
@@ -28,6 +30,8 @@ export const DutyOrderByWithRelationInputSchema: z.ZodType<Prisma.DutyOrderByWit
   incidents: z.lazy(() => IncidentOrderByRelationAggregateInputSchema).optional(),
   attendance: z.lazy(() => AttendanceOrderByRelationAggregateInputSchema).optional(),
   OvertimeSummary: z.lazy(() => OvertimeSummaryOrderByRelationAggregateInputSchema).optional(),
+  attendanceEvents: z.lazy(() => AttendanceEventOrderByRelationAggregateInputSchema).optional(),
+  dutyDayTypes: z.lazy(() => DutyDayTypeOrderByRelationAggregateInputSchema).optional(),
 });
 
 export default DutyOrderByWithRelationInputSchema;

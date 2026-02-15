@@ -1,22 +1,40 @@
-// src/application/commandHandlers/attendance/AttendanceCommandHandler.ts
-
-import { AttendanceAggregate } from "@/domain/attendance/AttendanceAggregate";
-import { AttendanceCommand } from "@/domain/attendance/attendanceCommands";
-import { AttendanceEvent } from "@/domain/attendance/attendance-events";
+import { AttendanceAggregate } from "./attendanceAggregate";
 import { EventStoreRepository } from "@/infra/event-store/EventStoreRepository";
+import { AttendanceCommand } from "./attendanceCommands";
+import { AttendanceEvent } from "./attendance-events";
 
 export class AttendanceCommandHandler {
-  constructor(private readonly eventStore: EventStoreRepository) {}
+  constructor(
+    private readonly eventStore: EventStoreRepository<AttendanceEvent>
+  ) {}
 
   async handle(command: AttendanceCommand): Promise<void> {
-    const aggregate =
-      command.type === "StartWork"
-        ? AttendanceAggregate.start(
-            command.dutyId,
-            command.staffId,
-            command.at
-          )
-        : await this.load(command.dutyId, command.staffId);
+    const streamId = `attendance-${command.dutyId}-${command.staffId}`;
+
+    if (command.type === "StartWork") {
+      const aggregate = AttendanceAggregate.start(
+        command.dutyId,
+        command.staffId,
+        command.at
+      );
+
+      await this.eventStore.append(
+        streamId,
+        aggregate.getAggregateType(),
+        aggregate.uncommittedEvents,
+        0 // 新規は version 0
+      );
+
+      aggregate.clearEvents();
+      return;
+    }
+
+    const history = await this.eventStore.load(streamId);
+
+    const aggregate = new AttendanceAggregate();
+    aggregate.loadFromHistory(history);
+
+    const expectedVersion = aggregate.getVersion();
 
     switch (command.type) {
       case "StartBreak":
@@ -32,33 +50,13 @@ export class AttendanceCommandHandler {
         break;
     }
 
-    const streamId = this.streamId(command.dutyId, command.staffId);
-
     await this.eventStore.append(
       streamId,
-      "AttendanceAggregate",
-      aggregate.uncommittedEvents
+      aggregate.getAggregateType(),
+      aggregate.uncommittedEvents,
+      expectedVersion
     );
 
     aggregate.clearEvents();
-  }
-
-  private async load(
-    dutyId: string,
-    staffId: number
-  ): Promise<AttendanceAggregate> {
-    const streamId = this.streamId(dutyId, staffId);
-    const events = await this.eventStore.load<AttendanceEvent>(streamId);
-
-    const agg = new AttendanceAggregate();
-    events.forEach((event: AttendanceEvent) => {
-      (agg as any).apply(event, true);
-    });
-
-    return agg;
-  }
-
-  private streamId(dutyId: string, staffId: number): string {
-    return `attendance-${dutyId}-${staffId}`;
   }
 }

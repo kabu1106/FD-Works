@@ -1,0 +1,13 @@
+import type { Prisma } from '@prisma/client';
+
+import { z } from 'zod';
+import { StringFieldUpdateOperationsInputSchema } from './StringFieldUpdateOperationsInputSchema';
+import { DateTimeFieldUpdateOperationsInputSchema } from './DateTimeFieldUpdateOperationsInputSchema';
+
+export const WeeklyDayOffUpdateManyMutationInputSchema: z.ZodType<Prisma.WeeklyDayOffUpdateManyMutationInput> = z.strictObject({
+  id: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  date: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+});
+
+export default WeeklyDayOffUpdateManyMutationInputSchema;

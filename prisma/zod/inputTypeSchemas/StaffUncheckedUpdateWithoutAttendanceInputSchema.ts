@@ -10,6 +10,11 @@ import { UserUncheckedUpdateOneWithoutStaffNestedInputSchema } from './UserUnche
 import { SpecialLeaveAssignmentUncheckedUpdateManyWithoutStaffNestedInputSchema } from './SpecialLeaveAssignmentUncheckedUpdateManyWithoutStaffNestedInputSchema';
 import { IncidentStaffUncheckedUpdateManyWithoutStaffNestedInputSchema } from './IncidentStaffUncheckedUpdateManyWithoutStaffNestedInputSchema';
 import { OvertimeSummaryUncheckedUpdateManyWithoutStaffNestedInputSchema } from './OvertimeSummaryUncheckedUpdateManyWithoutStaffNestedInputSchema';
+import { AttendanceEventUncheckedUpdateManyWithoutStaffNestedInputSchema } from './AttendanceEventUncheckedUpdateManyWithoutStaffNestedInputSchema';
+import { IncidentStaffEngagementUncheckedUpdateManyWithoutStaffNestedInputSchema } from './IncidentStaffEngagementUncheckedUpdateManyWithoutStaffNestedInputSchema';
+import { SubstituteHolidayUncheckedUpdateManyWithoutStaffNestedInputSchema } from './SubstituteHolidayUncheckedUpdateManyWithoutStaffNestedInputSchema';
+import { WeeklyDayOffUncheckedUpdateManyWithoutStaffNestedInputSchema } from './WeeklyDayOffUncheckedUpdateManyWithoutStaffNestedInputSchema';
+import { DutyDayTypeUncheckedUpdateManyWithoutStaffNestedInputSchema } from './DutyDayTypeUncheckedUpdateManyWithoutStaffNestedInputSchema';
 
 export const StaffUncheckedUpdateWithoutAttendanceInputSchema: z.ZodType<Prisma.StaffUncheckedUpdateWithoutAttendanceInput> = z.strictObject({
   id: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
@@ -23,6 +28,11 @@ export const StaffUncheckedUpdateWithoutAttendanceInputSchema: z.ZodType<Prisma.
   specialLeaveAssignments: z.lazy(() => SpecialLeaveAssignmentUncheckedUpdateManyWithoutStaffNestedInputSchema).optional(),
   IncidentStaff: z.lazy(() => IncidentStaffUncheckedUpdateManyWithoutStaffNestedInputSchema).optional(),
   OvertimeSummary: z.lazy(() => OvertimeSummaryUncheckedUpdateManyWithoutStaffNestedInputSchema).optional(),
+  attendanceEvents: z.lazy(() => AttendanceEventUncheckedUpdateManyWithoutStaffNestedInputSchema).optional(),
+  incidentStaffEngagements: z.lazy(() => IncidentStaffEngagementUncheckedUpdateManyWithoutStaffNestedInputSchema).optional(),
+  substituteHolidays: z.lazy(() => SubstituteHolidayUncheckedUpdateManyWithoutStaffNestedInputSchema).optional(),
+  weeklyDayOffs: z.lazy(() => WeeklyDayOffUncheckedUpdateManyWithoutStaffNestedInputSchema).optional(),
+  dutyDayTypes: z.lazy(() => DutyDayTypeUncheckedUpdateManyWithoutStaffNestedInputSchema).optional(),
 });
 
 export default StaffUncheckedUpdateWithoutAttendanceInputSchema;

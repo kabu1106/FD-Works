@@ -1,0 +1,25 @@
+import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
+import { StaffInVehicleIncludeSchema } from '../inputTypeSchemas/StaffInVehicleIncludeSchema'
+import { StaffInVehicleUpdateInputSchema } from '../inputTypeSchemas/StaffInVehicleUpdateInputSchema'
+import { StaffInVehicleUncheckedUpdateInputSchema } from '../inputTypeSchemas/StaffInVehicleUncheckedUpdateInputSchema'
+import { StaffInVehicleWhereUniqueInputSchema } from '../inputTypeSchemas/StaffInVehicleWhereUniqueInputSchema'
+import { DispatchedVehicleArgsSchema } from "../outputTypeSchemas/DispatchedVehicleArgsSchema"
+// Select schema needs to be in file to prevent circular imports
+//------------------------------------------------------
+
+export const StaffInVehicleSelectSchema: z.ZodType<Prisma.StaffInVehicleSelect> = z.object({
+  id: z.boolean().optional(),
+  dispatchedVehicleId: z.boolean().optional(),
+  staffId: z.boolean().optional(),
+  vehicle: z.union([z.boolean(),z.lazy(() => DispatchedVehicleArgsSchema)]).optional(),
+}).strict()
+
+export const StaffInVehicleUpdateArgsSchema: z.ZodType<Prisma.StaffInVehicleUpdateArgs> = z.object({
+  select: StaffInVehicleSelectSchema.optional(),
+  include: z.lazy(() => StaffInVehicleIncludeSchema).optional(),
+  data: z.union([ StaffInVehicleUpdateInputSchema, StaffInVehicleUncheckedUpdateInputSchema ]),
+  where: StaffInVehicleWhereUniqueInputSchema, 
+}).strict();
+
+export default StaffInVehicleUpdateArgsSchema;

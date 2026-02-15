@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { AttendanceTypeSchema } from '../inputTypeSchemas/AttendanceTypeSchema'
+import { AttendanceEventTypeSchema } from '../inputTypeSchemas/AttendanceEventTypeSchema'
 
 /////////////////////////////////////////
 // ATTENDANCE SCHEMA
 /////////////////////////////////////////
 
 export const AttendanceSchema = z.object({
-  type: AttendanceTypeSchema,
+  type: AttendanceEventTypeSchema,
   id: z.string(),
   dutyId: z.string(),
   departmentId: z.number().int(),

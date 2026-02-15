@@ -1,0 +1,17 @@
+import type { Prisma } from '@prisma/client';
+
+import { z } from 'zod';
+
+export const OvertimeSlotResolvedCreateManyInputSchema: z.ZodType<Prisma.OvertimeSlotResolvedCreateManyInput> = z.strictObject({
+  id: z.string().optional(),
+  dutyId: z.string(),
+  staffId: z.number().int(),
+  startAt: z.coerce.date(),
+  endAt: z.coerce.date(),
+  minutes: z.number().int(),
+  overtimeRateCategoryId: z.number().int(),
+  rateSnapshot: z.number(),
+  createdAt: z.coerce.date().optional(),
+});
+
+export default OvertimeSlotResolvedCreateManyInputSchema;

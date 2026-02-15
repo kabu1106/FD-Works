@@ -1,105 +1,66 @@
-// src/projection/attendance/AttendanceTimelineProjection.ts
-
-import { AttendanceEvent } from "@/domain/attendance/attendance-events";
-import { IncidentEvent } from "@/domain/incident/incident-events";
-import { DutyEvent } from "@/domain/duty/duty-events";
+// src/domain/attendance/AttendanceTimelineProjection.ts
+import { TimelineState } from "@/domain/attendance/attendanceTimelineTypes";
 import { AttendanceTimelineSlot } from "@/domain/attendance/attendanceTimelineSlot";
 
-type DomainEvent = AttendanceEvent | IncidentEvent | DutyEvent;
-
 export class AttendanceTimelineProjection {
-  private slots: AttendanceTimelineSlot[] = [];
+  /**
+   * 現在の状態とイベントを受け取り、新しい状態を計算して返す
+   */
+  project(state: TimelineState, event: any): TimelineState {
+    const { staffId, dutyId, at } = event.payload;
+    
+    // 状態のコピー（イミュータブルな扱いの準備）
+    let { slots, currentState, openSlot } = { ...state };
+    // 配列は新しく生成して、元の state を破壊しない
+    slots = [...slots];
 
-  /** 継続中スロット（staff × duty × type） */
-  private openSlot?: AttendanceTimelineSlot;
+    const startSlot = (type: AttendanceTimelineSlot["type"]) => {
+      const slot: AttendanceTimelineSlot = {
+        dutyId,
+        staffId,
+        type,
+        startAt: at,
+        endAt: null,
+      };
+      slots.push(slot);
+      openSlot = slot;
+    };
 
-  project(event: DomainEvent): AttendanceTimelineSlot[] {
+    const closeSlot = () => {
+      if (!openSlot) return;
+      // 参照経由で slots 内のオブジェクトを更新
+      openSlot.endAt = at;
+      openSlot = null;
+    };
+
     switch (event.eventType) {
-      // =====================
-      // Attendance
-      // =====================
       case "WorkStarted":
-        this.closeOpenSlot(event.payload.at);
-        this.openSlot = {
-          dutyId: event.payload.dutyId,
-          staffId: event.payload.staffId,
-          type: "work",
-          startAt: event.payload.at,
-          endAt: null,
-        };
-        this.slots.push(this.openSlot);
+        if (currentState !== "IDLE") break;
+        startSlot("work");
+        currentState = "WORK";
         break;
 
       case "BreakStarted":
-        this.closeOpenSlot(event.payload.at);
-        this.openSlot = {
-          dutyId: event.payload.dutyId,
-          staffId: event.payload.staffId,
-          type: "break",
-          startAt: event.payload.at,
-          endAt: null,
-        };
-        this.slots.push(this.openSlot);
+        if (currentState !== "WORK") break;
+        closeSlot();
+        startSlot("break");
+        currentState = "BREAK";
         break;
 
       case "BreakEnded":
-        this.closeOpenSlot(event.payload.at);
-        this.openSlot = {
-          dutyId: event.payload.dutyId,
-          staffId: event.payload.staffId,
-          type: "work",
-          startAt: event.payload.at,
-          endAt: null,
-        };
-        this.slots.push(this.openSlot);
+        if (currentState !== "BREAK") break;
+        closeSlot();
+        startSlot("work");
+        currentState = "WORK";
         break;
 
       case "WorkEnded":
-        this.closeOpenSlot(event.payload.at);
-        this.openSlot = undefined;
-        break;
-
-      // =====================
-      // Incident
-      // =====================
-      case "StaffBoarded":
-        this.closeOpenSlot(event.payload.boardedAt);
-        this.openSlot = {
-          dutyId: event.payload.incidentId, // 紐づく duty は Projection 上で解決済前提
-          staffId: event.payload.staffId,
-          type: "incident",
-          startAt: event.payload.boardedAt,
-          endAt: null,
-        };
-        this.slots.push(this.openSlot);
-        break;
-
-      case "VehicleReturned":
-        this.closeOpenSlot(event.payload.returnedAt);
-        break;
-
-      // =====================
-      // Recalculation
-      // =====================
-      case "DutyMarkedForRecalculation":
-        this.reset();
+        if (currentState !== "WORK") break;
+        closeSlot();
+        currentState = "IDLE";
         break;
     }
 
-    return this.slots;
-  }
-
-  // =====================
-  // Helpers
-  // =====================
-  private closeOpenSlot(at: string) {
-    if (this.openSlot && this.openSlot.endAt === null) {
-      this.openSlot.endAt = at;
-    }
-  }
-
-  reset() {
-    this.slots = [];
-    this.openSlot = undefined;
+    return { slots, currentState, openSlot };
   }
 }

@@ -1,5 +1,3 @@
-// src/domain/incident/IncidentAggregate.ts
-
 import { AggregateRoot } from "../shared/AggregateRoot";
 import { IncidentEvent } from "./incident-events";
 
@@ -7,6 +5,7 @@ export class IncidentAggregate extends AggregateRoot<IncidentEvent> {
   private incidentId!: string;
   private closed = false;
 
+  protected readonly aggregateType = "Incident";
   private dispatchedVehicles = new Set<number>();
 
   static report(
@@ -38,9 +37,12 @@ export class IncidentAggregate extends AggregateRoot<IncidentEvent> {
   boardStaff(
     vehicleId: number,
     staffId: number,
-    boardedAt: string
+    //boardedAt: string
   ) {
     if (this.closed) throw new Error("Incident closed");
+    if (!this.dispatchedVehicles.has(vehicleId)) {
+      throw new Error("Vehicle not dispatched");
+    }
 
     this.apply({
       eventType: "StaffBoarded",
@@ -48,7 +50,7 @@ export class IncidentAggregate extends AggregateRoot<IncidentEvent> {
         incidentId: this.incidentId,
         vehicleId,
         staffId,
-        boardedAt,
+        //boardedAt,
       },
     });
   }

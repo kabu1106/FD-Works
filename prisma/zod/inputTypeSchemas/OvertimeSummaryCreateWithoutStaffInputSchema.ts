@@ -6,11 +6,10 @@ import { OvertimeSummaryDetailCreateNestedManyWithoutOvertimeSummaryInputSchema 
 
 export const OvertimeSummaryCreateWithoutStaffInputSchema: z.ZodType<Prisma.OvertimeSummaryCreateWithoutStaffInput> = z.strictObject({
   id: z.string().optional(),
-  version: z.number().int().optional(),
+  calculationVersion: z.number().int(),
   totalMinutes: z.number().int(),
   isFinalized: z.boolean().optional(),
-  createdAt: z.coerce.date().optional(),
-  updatedAt: z.coerce.date().optional(),
+  calculatedAt: z.coerce.date().optional(),
   duty: z.lazy(() => DutyCreateNestedOneWithoutOvertimeSummaryInputSchema),
   details: z.lazy(() => OvertimeSummaryDetailCreateNestedManyWithoutOvertimeSummaryInputSchema).optional(),
 });

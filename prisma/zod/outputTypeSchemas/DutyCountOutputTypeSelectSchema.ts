@@ -7,6 +7,8 @@ export const DutyCountOutputTypeSelectSchema: z.ZodType<Prisma.DutyCountOutputTy
   incidents: z.boolean().optional(),
   attendance: z.boolean().optional(),
   OvertimeSummary: z.boolean().optional(),
+  attendanceEvents: z.boolean().optional(),
+  dutyDayTypes: z.boolean().optional(),
 }).strict();
 
 export default DutyCountOutputTypeSelectSchema;

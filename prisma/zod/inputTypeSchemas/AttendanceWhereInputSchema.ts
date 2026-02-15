@@ -3,8 +3,8 @@ import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { StringFilterSchema } from './StringFilterSchema';
 import { IntFilterSchema } from './IntFilterSchema';
-import { EnumAttendanceTypeFilterSchema } from './EnumAttendanceTypeFilterSchema';
-import { AttendanceTypeSchema } from './AttendanceTypeSchema';
+import { EnumAttendanceEventTypeFilterSchema } from './EnumAttendanceEventTypeFilterSchema';
+import { AttendanceEventTypeSchema } from './AttendanceEventTypeSchema';
 import { DateTimeFilterSchema } from './DateTimeFilterSchema';
 import { DutyRelationFilterSchema } from './DutyRelationFilterSchema';
 import { DutyWhereInputSchema } from './DutyWhereInputSchema';
@@ -21,7 +21,7 @@ export const AttendanceWhereInputSchema: z.ZodType<Prisma.AttendanceWhereInput> 
   dutyId: z.union([ z.lazy(() => StringFilterSchema), z.string() ]).optional(),
   departmentId: z.union([ z.lazy(() => IntFilterSchema), z.number() ]).optional(),
   staffId: z.union([ z.lazy(() => IntFilterSchema), z.number() ]).optional(),
-  type: z.union([ z.lazy(() => EnumAttendanceTypeFilterSchema), z.lazy(() => AttendanceTypeSchema) ]).optional(),
+  type: z.union([ z.lazy(() => EnumAttendanceEventTypeFilterSchema), z.lazy(() => AttendanceEventTypeSchema) ]).optional(),
   startTime: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
   endTime: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema), z.coerce.date() ]).optional(),

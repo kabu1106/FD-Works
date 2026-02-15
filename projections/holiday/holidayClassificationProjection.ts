@@ -1,5 +1,6 @@
 import { OvertimeSlot } from "@/projections/overtime/overTime";
 import { HolidayCalendar } from "./holidayCalendar";
+import { splitByDateBoundary } from "@/projections/shared/splitByDateBoundary";
 
 export interface HolidayClassifiedSlot {
   dutyId: string;
@@ -17,7 +18,7 @@ export class HolidayClassificationProjection {
     const results: HolidayClassifiedSlot[] = [];
 
     for (const slot of slots) {
-      const parts = this.splitByDateBoundary(slot.startAt, slot.endAt);
+      const parts = splitByDateBoundary(slot.startAt, slot.endAt);
 
       for (const part of parts) {
         const date = new Date(part.startAt);
@@ -34,29 +35,5 @@ export class HolidayClassificationProjection {
     }
 
     return results;
-  }
-
-  private splitByDateBoundary(startAt: string, endAt: string) {
-    const result: { startAt: string; endAt: string }[] = [];
-
-    let cursor = new Date(startAt);
-    const end = new Date(endAt);
-
-    while (cursor < end) {
-      const nextMidnight = new Date(cursor);
-      nextMidnight.setUTCHours(24, 0, 0, 0);
-
-      const segmentEnd =
-        nextMidnight < end ? nextMidnight : end;
-
-      result.push({
-        startAt: cursor.toISOString(),
-        endAt: segmentEnd.toISOString(),
-      });
-
-      cursor = segmentEnd;
-    }
-
-    return result;
   }
 }

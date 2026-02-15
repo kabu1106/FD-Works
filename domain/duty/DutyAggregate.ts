@@ -1,5 +1,6 @@
 // src/domain/duty/DutyAggregate.ts
 
+import { number } from "zod";
 import { AggregateRoot } from "../shared/AggregateRoot";
 import { DutyEvent } from "./duty-events";
 
@@ -7,10 +8,13 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
   private dutyId!: string;
   private teamId!: number;
   private date!: string;
+  protected readonly aggregateType = "Duty";
 
   private approved = false;
   private locked = false;
+
   private staffIds = new Set<number>();
+  private staffWorkGroups = new Map<number, number>();
 
   static create(dutyId: string, teamId: number, date: string) {
     const agg = new DutyAggregate();
@@ -42,6 +46,46 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
     this.apply({
       eventType: "StaffUnassignedFromDuty",
       payload: { dutyId: this.dutyId, staffId },
+    });
+  }
+
+  assignWorkGroup(staffId: number, workGroupId: number) {
+    this.ensureMutable();
+
+    if (!this.staffIds.has(staffId)) {
+      throw new Error("Staff not assigned to duty");
+    }
+
+    if (this.staffWorkGroups.has(staffId)) {
+      throw new Error("WorkGroup already assigned");
+    }
+
+    this.apply({
+      eventType: "WorkGroupAssignedToStaff",
+      payload: { dutyId: this.dutyId, staffId, workGroupId },
+    });
+  }
+
+  changeWorkGroup(staffId: number, workGroupId: number, reason: string) {
+    this.ensureMutable();
+
+    if (!this.staffIds.has(staffId)) {
+      throw new Error("Staff not assigned to duty");
+    }
+
+    if (!this.staffWorkGroups.has(staffId)) {
+      throw new Error("WorkGroup not assigned yet");
+    }
+
+    const current = this.staffWorkGroups.get(staffId);
+    if (current === undefined) {
+      throw new Error("WorkGroup not assigned yet");
+    }
+    
+
+    this.apply({
+      eventType: "WorkGroupAssignmentChanged",
+      payload: { dutyId: this.dutyId, staffId, oldWorkGroupId: current, newWorkGroupId: workGroupId, reason },
     });
   }
 
@@ -108,6 +152,21 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
 
       case "StaffUnassignedFromDuty":
         this.staffIds.delete(event.payload.staffId);
+        this.staffWorkGroups.delete(event.payload.staffId);
+        break;
+
+      case "WorkGroupAssignedToStaff":
+        this.staffWorkGroups.set(
+          event.payload.staffId,
+          event.payload.workGroupId
+        );
+        break;
+
+      case "WorkGroupAssignmentChanged":
+        this.staffWorkGroups.set(
+          event.payload.staffId,
+          event.payload.newWorkGroupId
+        );
         break;
 
       case "DutyApproved":
