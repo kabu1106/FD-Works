@@ -1,151 +1,79 @@
-diff --git a/projections/overtime/__test__/overtimeSlotResolvedProjection.test.ts b/projections/overtime/__test__/overtimeSlotResolvedProjection.test.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..61a1ce36f739f1c39b90cfe3ec99a1b813dc1e8a
---- /dev/null
-+++ b/projections/overtime/__test__/overtimeSlotResolvedProjection.test.ts
-@@ -0,0 +1,76 @@
-+import { AttendanceTimelineSlot } from '@/domain/attendance/attendanceTimelineSlot'
-+import { OvertimeSlotResolvedProjection } from '../overtimeSlotResolvedProjection'
-+
-+describe('OvertimeSlotResolvedProjection', () => {
-+  it('DUTY24の仮眠時間と部分的に重なる超勤は重なり部分のみ除外する', () => {
-+    const projection = new OvertimeSlotResolvedProjection()
-+
-+    const slots: AttendanceTimelineSlot[] = [
-+      {
-+        dutyId: 'duty-1',
-+        staffId: 10,
-+        type: 'work',
-+        startAt: '2026-02-01T07:00:00.000Z',
-+        endAt: '2026-02-01T09:00:00.000Z',
-+      },
-+    ]
-+
-+    const result = projection.resolve(
-+      slots,
-+      '2026-02-01',
-+      'DUTY24',
-+      {
-+        startAt: '2026-02-01T07:30:00.000Z',
-+        endAt: '2026-02-01T08:30:00.000Z',
-+      }
-+    )
-+
-+    expect(result).toEqual([
-+      {
-+        dutyId: 'duty-1',
-+        staffId: 10,
-+        startAt: '2026-02-01T07:00:00.000Z',
-+        endAt: '2026-02-01T07:30:00.000Z',
-+      },
-+    ])
-+  })
-+
-+  it('仮眠時間が超勤区間の中間にある場合は前後2つに分割する', () => {
-+    const projection = new OvertimeSlotResolvedProjection()
-+
-+    const slots: AttendanceTimelineSlot[] = [
-+      {
-+        dutyId: 'duty-2',
-+        staffId: 20,
-+        type: 'work',
-+        startAt: '2026-02-02T07:00:00.000Z',
-+        endAt: '2026-02-02T10:00:00.000Z',
-+      },
-+    ]
-+
-+    const result = projection.resolve(
-+      slots,
-+      '2026-02-02',
-+      'DUTY24',
-+      {
-+        startAt: '2026-02-02T07:30:00.000Z',
-+        endAt: '2026-02-02T08:15:00.000Z',
-+      }
-+    )
-+
-+    expect(result).toEqual([
-+      {
-+        dutyId: 'duty-2',
-+        staffId: 20,
-+        startAt: '2026-02-02T07:00:00.000Z',
-+        endAt: '2026-02-02T07:30:00.000Z',
-+      },
-+      {
-+        dutyId: 'duty-2',
-+        staffId: 20,
-+        startAt: '2026-02-02T08:15:00.000Z',
-+        endAt: '2026-02-02T08:30:00.000Z',
-+      },
-+    ])
-+  })
-+})
-diff --git a/projections/overtime/overtimeSlotResolvedProjection.ts b/projections/overtime/overtimeSlotResolvedProjection.ts
-index 9cbbed18cfa72ddc2e0b95f48bb179666ad9eb3a..30b684efdcf1c39ec7dbb6ba044ca6fd9efcfa9c 100644
---- a/projections/overtime/overtimeSlotResolvedProjection.ts
-+++ b/projections/overtime/overtimeSlotResolvedProjection.ts
-@@ -86,36 +86,60 @@ export class OvertimeSlotResolvedProjection {
+diff --git a/domain/duty/dutyCommandHandlers.ts b/domain/duty/dutyCommandHandlers.ts
+index 7118a56a2718b7145b16e3524103a96da991c353..b24308906d8f67cf3a4a1614d9608a3ff64a605b 100644
+--- a/domain/duty/dutyCommandHandlers.ts
++++ b/domain/duty/dutyCommandHandlers.ts
+@@ -22,57 +22,71 @@ async handle(command: DutyCommand): Promise<void> {
+   if (command.type === "CreateDuty") {
+     aggregate = DutyAggregate.create(command.dutyId, command.teamId, command.date);
+     eventsToProject = [...aggregate.uncommittedEvents];
+     expectedVersion = 0;
+   } else {
+     const history = await this.eventStore.load(streamId);
+     aggregate = new DutyAggregate();
+     aggregate.loadFromHistory(history);
+     expectedVersion = aggregate.getVersion();
  
-     if (start < scheduledStart) {
-       ranges.push({
-         start: start.toISOString(),
-         end: new Date(Math.min(end.getTime(), scheduledStart.getTime())).toISOString(),
-       });
-     }
- 
-     if (end > scheduledEnd) {
-       ranges.push({
-         start: new Date(Math.max(start.getTime(), scheduledEnd.getTime())).toISOString(),
-         end: end.toISOString(),
-       });
-     }
- 
-     return ranges;
+     this.applyCommand(aggregate, command);
+     eventsToProject = [...aggregate.uncommittedEvents];
    }
  
-   private removeSleepOverlap(
-     slot: AttendanceTimelineSlot,
-     sleep: WorkGroupSleepWindow
-   ) {
-     const sleepStart = new Date(sleep.startAt);
-     const sleepEnd = new Date(sleep.endAt);
+   // 2. Event Store への保存
+   await this.eventStore.append(
+     streamId,
+     "Duty",
+     eventsToProject,
+     expectedVersion
+   );
  
--    this.overtimeSlots = this.overtimeSlots.filter((o) => {
-+    this.overtimeSlots = this.overtimeSlots.flatMap((o) => {
-+      if (o.dutyId !== slot.dutyId || o.staffId !== slot.staffId) {
-+        return [o];
-+      }
-+
-       const oStart = new Date(o.startAt);
-       const oEnd = new Date(o.endAt);
-+      const hasOverlap = oStart < sleepEnd && oEnd > sleepStart;
-+
-+      if (!hasOverlap) {
-+        return [o];
-+      }
-+
-+      const chunks: OvertimeSlot[] = [];
+   // ★重要: 保存が終わったら集約内のイベントをクリアする
+   aggregate.clearEvents(); 
  
--      const overlap =
--        oStart < sleepEnd && oEnd > sleepStart;
-+      if (oStart < sleepStart) {
-+        chunks.push({
-+          ...o,
-+          startAt: oStart.toISOString(),
-+          endAt: sleepStart.toISOString(),
-+        });
-+      }
+-  // 3. プロジェクションの実行
++  // 3. プロジェクションの実行（リトライ付き）
+   for (const event of eventsToProject) {
++      await this.projectWithRetry(event);
++    }
++  }
 +
-+      if (sleepEnd < oEnd) {
-+        chunks.push({
-+          ...o,
-+          startAt: sleepEnd.toISOString(),
-+          endAt: oEnd.toISOString(),
-+        });
-+      }
- 
--      return !overlap;
-+      return chunks;
-     });
++  private async projectWithRetry(event: DutyEventDTO): Promise<void> {
++    const maxProjectionRetries = 3;
++
++    for (let attempt = 1; attempt <= maxProjectionRetries; attempt++) {
+       try {
+         await this.projector.projectSingle(event);
++        return;
+       } catch (error) {
+-        // ログ出力。プロジェクションの失敗でコマンド全体をロールバックさせない判断
+-        console.error(`[DutyProjectionError] ${event.eventType}:`, error);
++        if (attempt === maxProjectionRetries) {
++          // イベント保存済みのため失敗をログ化して復旧ワーカーで再処理する
++          console.error(`[DutyProjectionError] exhausted retries for ${event.eventType}:`, error);
++          return;
++        }
++
++        await new Promise((resolve) => setTimeout(resolve, 20 * attempt));
+       }
+     }
    }
- }
+ 
+   private applyCommand(aggregate: DutyAggregate, command: DutyCommand) {
+     switch (command.type) {
+       case "AssignStaffToDuty":
+         aggregate.assignStaff(command.staffId);
+         break;
+       case "UnassignStaffFromDuty":
+         aggregate.unassignStaff(command.staffId);
+         break;
+       case "AssignWorkGroupToStaff":
+         aggregate.assignWorkGroup(command.staffId, command.workGroupId);
+         break;
+       case "ChangeWorkGroupAssignment":
+         aggregate.changeWorkGroup(command.staffId, command.workGroupId, "Manual Change");
+         break;
+       case "ApproveDuty":
+         aggregate.approve(command.approvedBy);
+         break;
+       case "RevokeDutyApproval":
+         aggregate.revokeApproval(command.reason);
+         break;
+       case "LockDuty":

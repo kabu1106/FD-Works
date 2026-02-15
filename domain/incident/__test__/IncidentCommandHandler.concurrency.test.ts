@@ -12,6 +12,7 @@ describe("IncidentCommandHandler - optimistic concurrency", () => {
       append: vi.fn(),
       load: vi.fn(),
     } as unknown as EventStoreRepository<IncidentEvent>;
+    
 
     handler = new IncidentCommandHandler(eventStore);
   });

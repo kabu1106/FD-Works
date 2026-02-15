@@ -41,22 +41,36 @@ export class IncidentCommandHandler {
           await this.eventStore.append(streamId, aggregate.getAggregateType(), eventsToProject, expectedVersion);
         }
 
-        // --- Projectionの実行 ---
-        // イベントストアへの保存が成功した後に実行
-        // --- Projectionの実行 ---
-for (const event of eventsToProject) {
-  try {
-    // project ではなく projectSingle を呼び出す
-    await this.projection.projectSingle(event); 
-  } catch (projError) {
-    console.error(`Projection failed for event: ${event.eventType}`, projError);
-  }
-}
+        // --- Projectionの実行（リトライ付き） ---
+        for (const event of eventsToProject) {
+          await this.projectWithRetry(event);
+        }
 
         return;
       } catch (error) {
         if (error instanceof OptimisticLockError && attempt < this.maxRetries) continue;
         throw error;
+      }
+    }
+  }
+
+  private async projectWithRetry(event: IncidentEvent): Promise<void> {
+    const maxProjectionRetries = 3;
+
+    for (let attempt = 1; attempt <= maxProjectionRetries; attempt++) {
+      try {
+        await this.projection.projectSingle(event);
+        return;
+      } catch (projError) {
+        if (attempt === maxProjectionRetries) {
+          console.error(
+            `Projection failed after retries for event: ${event.eventType}`,
+            projError
+          );
+          return;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 20 * attempt));
       }
     }
   }

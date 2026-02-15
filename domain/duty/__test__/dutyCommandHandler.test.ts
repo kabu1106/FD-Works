@@ -331,7 +331,7 @@ describe("DutyCommandHandler", () => {
           const [streamId, aggregateType, events, version] =
             appendMock.mock.calls[0];
   
-          expect(streamId).toBe("attendance-d1");
+          expect(streamId).toBe("duty-d1");
           expect(aggregateType).toBe("Duty");
   
           expect(events).toHaveLength(1);
