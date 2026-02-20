@@ -1,5 +1,5 @@
 // src/projections/duty/DutyProjector.ts
-import { PrismaClient, ScheduleStatus } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { DutyEventDTO } from "@/domain/duty/dutyEventSchema";
 
 export class DutyProjector {
@@ -10,21 +10,47 @@ export class DutyProjector {
    */
   async projectSingle(event: DutyEventDTO): Promise<void> {
     switch (event.eventType) {
-      case "DutyCreated":
-        await this.prisma.duty.upsert({
-          where: { id: event.payload.dutyId },
-          update: {
-            date: new Date(event.payload.date),
-            teamId: event.payload.teamId,
-          },
-          create: {
-            id: event.payload.dutyId,
-            date: new Date(event.payload.date),
-            teamId: event.payload.teamId,
-            status: "UNAPPROVED",
-          },
-        });
+      case "DutyCreated": {
+        const dutyDate = new Date(event.payload.date);
+
+        try {
+          await this.prisma.duty.upsert({
+            where: { id: event.payload.dutyId },
+            update: {
+              date: dutyDate,
+              teamId: event.payload.teamId,
+            },
+            create: {
+              id: event.payload.dutyId,
+              date: dutyDate,
+              teamId: event.payload.teamId,
+              status: "UNAPPROVED",
+            },
+          });
+        } catch (error) {
+          if (this.isDateTeamConflict(error)) {
+            // date+team の既存行と id を整合させ、同一勤務イベントを再適用可能にする
+            await this.prisma.duty.update({
+              where: {
+                date_teamId: {
+                  date: dutyDate,
+                  teamId: event.payload.teamId,
+                },
+              },
+              data: {
+                id: event.payload.dutyId,
+                date: dutyDate,
+                teamId: event.payload.teamId,
+              },
+            });
+            break;
+          }
+
+          throw error;
+        }
         break;
+
+      }
 
       case "StaffAssignedToDuty":
         // dutiesテーブルへの紐付けは後続のWorkGroupAssignmentで行われるため、
@@ -41,26 +67,36 @@ export class DutyProjector {
         });
         break;
 
-      case "WorkGroupAssignedToStaff":
-      case "WorkGroupAssignmentChanged":
-        // ワークグループの割り当てまたは変更
-        await this.prisma.workGroupAssignment.upsert({
-          where: {
-            dutyId_staffId: {
-              dutyId: event.payload.dutyId,
-              staffId: event.payload.staffId,
-            },
-          },
-          update: {
-            workGroupId: (event.payload as any).newWorkGroupId ?? (event.payload as any).workGroupId,
-          },
-          create: {
-            dutyId: event.payload.dutyId,
-            staffId: event.payload.staffId,
-            workGroupId: (event.payload as any).workGroupId,
-          },
-        });
-        break;
+        case "WorkGroupAssignedToStaff":
+          case "WorkGroupAssignmentChanged": {
+            const { dutyId, staffId } = event.payload;
+            
+            // ✅ 実行時バリデーションの強化
+            if (!dutyId) {
+              throw new Error(`[DutyProjector] Missing dutyId for event: ${event.eventType}`);
+            }
+    
+            const workGroupId =
+              event.eventType === "WorkGroupAssignmentChanged"
+                ? event.payload.newWorkGroupId
+                : event.payload.workGroupId;
+     
+            await this.prisma.workGroupAssignment.upsert({
+              where: {
+                dutyId_staffId: {
+                  dutyId: dutyId,
+                  staffId: staffId,
+                },
+              },
+              update: { workGroupId },
+              create: {
+                dutyId: dutyId,
+                staffId: staffId,
+                workGroupId,
+              },
+            });
+            break;
+          }
 
       case "DutyApproved":
         await this.prisma.duty.update({
@@ -94,5 +130,15 @@ export class DutyProjector {
         });
         break;
     }
+  }
+
+  private isDateTeamConflict(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002" &&
+      Array.isArray(error.meta?.target) &&
+      error.meta?.target.includes("date") &&
+      error.meta?.target.includes("teamId")
+    );
   }
 }

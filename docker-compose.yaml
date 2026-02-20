@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16
@@ -12,6 +10,19 @@ services:
       POSTGRES_PASSWORD: devpassword
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  test-postgres:
+    image: postgres:16
+    container_name: dev-test-postgres
+    ports:
+      - "55432:5432"
+    environment:
+      POSTGRES_DB: app_dev
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: devpassword
+    volumes:
+      - pgdata:/var/lib/postgresql/data/test
     restart: unless-stopped
 
 volumes:

@@ -27,6 +27,9 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
 
   assignStaff(staffId: number) {
     this.ensureMutable();
+    // ✅ 防御的コード: dutyId が未設定のまま続行されないようにする
+    if (!this.dutyId) throw new Error("Duty ID not initialized");
+
     if (this.staffIds.has(staffId)) {
       throw new Error("Staff already assigned");
     }
@@ -39,6 +42,10 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
 
   unassignStaff(staffId: number) {
     this.ensureMutable();
+
+    // ✅ 防御的コード: dutyId が未設定のまま続行されないようにする
+    if (!this.dutyId) throw new Error("Duty ID not initialized");
+
     if (!this.staffIds.has(staffId)) {
       throw new Error("Staff not assigned");
     }
@@ -51,6 +58,9 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
 
   assignWorkGroup(staffId: number, workGroupId: number) {
     this.ensureMutable();
+
+    // ✅ 防御的コード: dutyId が未設定のまま続行されないようにする
+    if (!this.dutyId) throw new Error("Duty ID not initialized");
 
     if (!this.staffIds.has(staffId)) {
       throw new Error("Staff not assigned to duty");
@@ -68,6 +78,9 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
 
   changeWorkGroup(staffId: number, workGroupId: number, reason: string) {
     this.ensureMutable();
+
+    // ✅ 防御的コード: dutyId が未設定のまま続行されないようにする
+    if (!this.dutyId) throw new Error("Duty ID not initialized");
 
     if (!this.staffIds.has(staffId)) {
       throw new Error("Staff not assigned to duty");
@@ -92,6 +105,8 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
   approve(approvedBy: string) {
     if (this.approved) throw new Error("Already approved");
     if (this.locked) throw new Error("Already locked");
+    // ✅ 防御的コード: dutyId が未設定のまま続行されないようにする
+    if (!this.dutyId) throw new Error("Duty ID not initialized");
     if (this.staffIds.size === 0) {
       throw new Error("Cannot approve duty without staff");
     }
@@ -105,6 +120,8 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
   revokeApproval(reason: string) {
     if (!this.approved) throw new Error("Not approved");
     if (this.locked) throw new Error("Already locked");
+    // ✅ 防御的コード: dutyId が未設定のまま続行されないようにする
+    if (!this.dutyId) throw new Error("Duty ID not initialized");
 
     this.apply({
       eventType: "DutyApprovalRevoked",
@@ -125,6 +142,9 @@ export class DutyAggregate extends AggregateRoot<DutyEvent> {
     if (!this.locked) {
       throw new Error("Only locked duty can be recalculated");
     }
+    // ✅ 防御的コード: dutyId が未設定のまま続行されないようにする
+    if (!this.dutyId) throw new Error("Duty ID not initialized");
+
 
     this.apply({
       eventType: "DutyMarkedForRecalculation",

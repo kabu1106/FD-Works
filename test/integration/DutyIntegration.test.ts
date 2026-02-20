@@ -1,10 +1,11 @@
-// src/test/integration/duty/DutyIntegration.test.ts
+// src/test/integration/DutyIntegration.test.ts
 import { describe, it, expect, beforeEach } from "vitest";
+import { randomUUID } from "crypto";
+import { prisma } from "@/lib/db/prisma"; // ← Prisma一元化前提
 import { DutyCommandHandler } from "@/domain/duty/dutyCommandHandlers";
 import { DutyProjector } from "@/projections/duty/DutyProjector";
 import { EventStoreRepository } from "@/infra/event-store/EventStoreRepository";
 import { PrismaEventStoreRepository } from "@/infra/event-store/PrismaEventStoreRepository";
-import { prisma, clearDatabase } from "./setup";
 import { DutyEventDTO } from "@/domain/duty/dutyEventSchema";
 
 describe("Duty Domain Integration Test", () => {
@@ -12,94 +13,166 @@ describe("Duty Domain Integration Test", () => {
   let eventStore: EventStoreRepository<DutyEventDTO>;
   let projector: DutyProjector;
 
+  // テストごとに完全分離されたID群
+  let teamId: number;
+  let staffId1: number;
+  let staffId2: number;
+  let workGroupId1: number;
+  let workGroupId2: number;
+
   beforeEach(async () => {
-    await clearDatabase();
-    
-    // マスタデータの投入 (teamId: 1 が必要)
-    await prisma.workShift.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { id: 1, code: "S1", name: "24h" }
-    });
-    await prisma.department.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { id: 1, code: "D1", name: "Hq" }
-    });
-    await prisma.team.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { id: 1, departmentId: 1, workShiftId: 1, code: "T1", name: "Team A" }
+    // 一意ID生成（数値カラム対応）
+    teamId = Math.floor(Math.random() * 1000000);
+    staffId1 = Math.floor(Math.random() * 1000000);
+    staffId2 = Math.floor(Math.random() * 1000000);
+    workGroupId1 = Math.floor(Math.random() * 1000000);
+    workGroupId2 = Math.floor(Math.random() * 1000000);
+
+    const departmentId = teamId + 1;
+    const workShiftId = teamId + 2;
+
+    // マスタデータ投入（すべてユニーク）
+    await prisma.workShift.create({
+      data: { id: workShiftId, code: `S-${workShiftId}`, name: "24h" }
     });
 
-    // ... その後の初期化
+    await prisma.department.create({
+      data: { id: departmentId, code: `D-${departmentId}`, name: "Hq" }
+    });
+
+    await prisma.team.create({
+      data: {
+        id: teamId,
+        departmentId,
+        workShiftId,
+        code: `T-${teamId}`,
+        name: "Team A"
+      }
+    });
+
+    await prisma.staff.create({
+      data: {
+        id: staffId1,
+        staffNo: `S-${staffId1}`,
+        name: "Test Staff 1",
+        teamId
+      }
+    });
+
+    await prisma.staff.create({
+      data: {
+        id: staffId2,
+        staffNo: `S-${staffId2}`,
+        name: "Test Staff 2",
+        teamId
+      }
+    });
+
+    await prisma.workGroup.create({
+      data: { id: workGroupId1, code: `G-${workGroupId1}`, name: "WG1" }
+    });
+
+    await prisma.workGroup.create({
+      data: { id: workGroupId2, code: `G-${workGroupId2}`, name: "WG2" }
+    });
+
     eventStore = new PrismaEventStoreRepository<DutyEventDTO>(prisma);
     projector = new DutyProjector(prisma);
     handler = new DutyCommandHandler(eventStore, projector);
   });
 
   it("勤務の作成からスタッフの割り当て、承認までの一連のフローがDBに反映されること", async () => {
-    const dutyId = "test-duty-uuid-001";
-    const staffId = 101;
-    const workGroupId = 5;
+    const dutyId = randomUUID();
+    const aggregateId = `duty-${dutyId}`;
 
-    // 1. 勤務作成コマンドの実行
     await handler.handle({
       type: "CreateDuty",
       dutyId,
-      teamId: 1,
+      teamId,
       date: "2024-06-01",
     });
 
-    // DBの確認: dutiesテーブルにレコードがあるか
-    const dutyRecord = await prisma.duty.findUnique({ where: { id: dutyId } });
+    const dutyRecord = await prisma.duty.findUnique({
+      where: { id: dutyId }
+    });
+
     expect(dutyRecord).not.toBeNull();
     expect(dutyRecord?.status).toBe("UNAPPROVED");
 
-    // 2. スタッフ割り当てとワークグループ設定
-    // ※ Aggregateの制約上、先に割り当てが必要
-    await handler.handle({ type: "AssignStaffToDuty", dutyId, staffId });
-    await handler.handle({ type: "AssignWorkGroupToStaff", dutyId, staffId, workGroupId });
-
-    // DBの確認: work_group_assignmentsテーブル
-    const assignment = await prisma.workGroupAssignment.findUnique({
-      where: { dutyId_staffId: { dutyId, staffId } }
+    await handler.handle({
+      type: "AssignStaffToDuty",
+      dutyId,
+      staffId: staffId1
     });
-    expect(assignment?.workGroupId).toBe(workGroupId);
 
-    // 3. 承認コマンド
+    await handler.handle({
+      type: "AssignWorkGroupToStaff",
+      dutyId,
+      staffId: staffId1,
+      workGroupId: workGroupId2
+    });
+
+    const assignment = await prisma.workGroupAssignment.findUnique({
+      where: {
+        dutyId_staffId: { dutyId, staffId: staffId1 }
+      }
+    });
+
+    expect(assignment?.workGroupId).toBe(workGroupId2);
+
     await handler.handle({
       type: "ApproveDuty",
       dutyId,
-      approvedBy: "test-admin"
+      approvedBy: "Test admin"
     });
 
-    // DBの確認: ステータスが変更されているか
-    const approvedDuty = await prisma.duty.findUnique({ where: { id: dutyId } });
+    const approvedDuty = await prisma.duty.findUnique({
+      where: { id: dutyId }
+    });
+
     expect(approvedDuty?.status).toBe("APPROVED");
 
-    // 4. イベントストアの確認 (副作用が正しく永続化されているか)
-    const history = await eventStore.load(`attendance-${dutyId}`);
-    expect(history.length).toBe(4); // Created, Assigned, WGAssigned, Approved
+    const history = await eventStore.load(aggregateId);
+
+    expect(history.length).toBe(4);
     expect(history[0].eventType).toBe("DutyCreated");
   });
 
   it("スタッフの割り当て解除時に、読み取りモデルからも削除されること", async () => {
-    const dutyId = "test-duty-uuid-002";
-    const staffId = 202;
+    const dutyId = randomUUID();
 
-    // 前提条件: 作成と割り当て
-    await handler.handle({ type: "CreateDuty", dutyId, teamId: 1, date: "2024-06-01" });
-    await handler.handle({ type: "AssignStaffToDuty", dutyId, staffId });
-    await handler.handle({ type: "AssignWorkGroupToStaff", dutyId, staffId, workGroupId: 1 });
-
-    // 実行: 割り当て解除
-    await handler.handle({ type: "UnassignStaffFromDuty", dutyId, staffId });
-
-    // 検証: プロジェクションによって中間テーブルから消えているか
-    const assignment = await prisma.workGroupAssignment.findUnique({
-      where: { dutyId_staffId: { dutyId, staffId } }
+    await handler.handle({
+      type: "CreateDuty",
+      dutyId,
+      teamId,
+      date: "2024-06-01"
     });
+
+    await handler.handle({
+      type: "AssignStaffToDuty",
+      dutyId,
+      staffId: staffId2
+    });
+
+    await handler.handle({
+      type: "AssignWorkGroupToStaff",
+      dutyId,
+      staffId: staffId2,
+      workGroupId: workGroupId1
+    });
+
+    await handler.handle({
+      type: "UnassignStaffFromDuty",
+      dutyId,
+      staffId: staffId2
+    });
+
+    const assignment = await prisma.workGroupAssignment.findUnique({
+      where: {
+        dutyId_staffId: { dutyId, staffId: staffId2 }
+      }
+    });
+
     expect(assignment).toBeNull();
   });
 });

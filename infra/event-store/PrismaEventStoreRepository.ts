@@ -1,9 +1,12 @@
 // infra/event-store/PrismaEventStoreRepository.ts
-import { OptimisticLockError } from "@/domain/errors/OptimisticLockError";
-import { Prisma, PrismaClient } from "@prisma/client";
-import { EventStoreRepository } from "./EventStoreRepository"; // interface の方
 
-export class PrismaEventStoreRepository<T> implements EventStoreRepository<T> {
+import { PrismaClient, Prisma } from "@prisma/client";
+import { EventStoreRepository } from "./EventStoreRepository";
+import { OptimisticLockError } from "@/domain/errors/OptimisticLockError";
+
+export class PrismaEventStoreRepository<T>
+  implements EventStoreRepository<T>
+{
   constructor(private readonly prisma: PrismaClient) {}
 
   async load(aggregateId: string): Promise<T[]> {
@@ -11,7 +14,13 @@ export class PrismaEventStoreRepository<T> implements EventStoreRepository<T> {
       where: { aggregateId },
       orderBy: { aggregateVersion: "asc" },
     });
-    return records.map(r => r.payload as unknown as T);
+
+    return records.map((r) => ({
+      eventType: r.eventType,
+      aggregateId: r.aggregateId,
+      payload: r.payload,
+    }) as T);
+    
   }
 
   async append(
@@ -25,10 +34,11 @@ export class PrismaEventStoreRepository<T> implements EventStoreRepository<T> {
         const latest = await tx.eventStore.findFirst({
           where: { aggregateId },
           orderBy: { aggregateVersion: "desc" },
-          select: { aggregateVersion: true },
         });
-
+  
         const currentVersion = latest?.aggregateVersion ?? 0;
+  
+        // ✅ 3引数で投げる
         if (currentVersion !== expectedVersion) {
           throw new OptimisticLockError(
             aggregateId,
@@ -36,17 +46,17 @@ export class PrismaEventStoreRepository<T> implements EventStoreRepository<T> {
             currentVersion
           );
         }
-
-        for (const [index, event] of events.entries()) {
-          const payload = event as { eventType?: string };
-
+  
+        for (let i = 0; i < events.length; i++) {
+          const event = events[i] as any;
+          
           await tx.eventStore.create({
             data: {
               aggregateId,
               aggregateType,
-              aggregateVersion: expectedVersion + index + 1,
-              eventType: payload.eventType ?? "UnknownEvent",
-              payload: payload,
+              aggregateVersion: expectedVersion + i + 1,
+              eventType: event.eventType,
+              payload: event.payload,
               occurredAt: new Date(),
               causedBy: "command",
               schemaVersion: 1,
@@ -54,30 +64,21 @@ export class PrismaEventStoreRepository<T> implements EventStoreRepository<T> {
           });
         }
       });
-    } catch (error) {
-      if (this.isUniqueConstraintError(error)) {
-        const latest = await this.prisma.eventStore.findFirst({
-          where: { aggregateId },
-          orderBy: { aggregateVersion: "desc" },
-          select: { aggregateVersion: true },
-        });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002"
+      ) {
+        // ✅ ここも3引数
         throw new OptimisticLockError(
           aggregateId,
           expectedVersion,
-          latest?.aggregateVersion ?? 0
+          expectedVersion + 1 // 実際の衝突はこの付近
         );
       }
-
-      throw error;
+  
+      throw err;
     }
   }
-
-  private isUniqueConstraintError(
-    error: unknown
-  ): error is Prisma.PrismaClientKnownRequestError {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    );
-  }
+  
 }

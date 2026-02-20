@@ -9,7 +9,7 @@ import { IncidentProjector } from "@/projections/incident/incidentProjector";
 export class IncidentCommandHandler {
   constructor(
     private readonly eventStore: EventStoreRepository<IncidentEvent>,
-    private readonly projection: IncidentProjector, // 追加
+    private readonly projection?: IncidentProjector,
     private readonly maxRetries: number = 3
   ) {}
 
@@ -35,7 +35,7 @@ export class IncidentCommandHandler {
           aggregate.loadFromHistory(history);
           const expectedVersion = aggregate.getVersion();
 
-          this.applyCommandToAggregate(aggregate, command); // ロジックを分離
+          this.applyCommandToAggregate(aggregate, command);
 
           eventsToProject = [...aggregate.uncommittedEvents];
           await this.eventStore.append(streamId, aggregate.getAggregateType(), eventsToProject, expectedVersion);
@@ -54,7 +54,12 @@ export class IncidentCommandHandler {
     }
   }
 
+  
   private async projectWithRetry(event: IncidentEvent): Promise<void> {
+    if (!this.projection) {
+      return;
+    }
+
     const maxProjectionRetries = 3;
 
     for (let attempt = 1; attempt <= maxProjectionRetries; attempt++) {

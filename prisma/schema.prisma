@@ -47,6 +47,7 @@ model EventStore {
   @@index([aggregateType])
   @@index([eventType])
   @@index([occurredAt])
+  @@map("event_store")
 }
 
 // ---------------------------------------------------------
