@@ -2,18 +2,19 @@
 import { EventStore, PrismaClient, IncidentStatus } from "@prisma/client";
 import { IProjector } from "../shared/IProjector";
 import { IncidentEvent } from "@/domain/incident/incident-events";
+import { IncidentEventDTO } from "@/domain/incident/incidentEventSchema";
 
 /**
  * IncidentReadModel への投影を担うプロジェクター
  * EventStore のイベント群を読み取り最適化モデルへ変換する
  */
-export class IncidentProjector implements IProjector {
+export class IncidentProjector implements IProjector<IncidentEventDTO> {
   readonly name = "IncidentReadModel";
   // ↓ この constructor を追加してください
   constructor(private readonly prisma: PrismaClient) {}
 
   // IProjector インターフェース用（バックグラウンドワーカーが使用）
-  async project(events: EventStore[]): Promise<void> {
+  async project(events: IncidentEventDTO[]): Promise<void> {
     for (const event of events) {
       // EventStore型からドメインイベントを取り出して適用
       await this.applyEvent(event.payload as unknown as IncidentEvent);

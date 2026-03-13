@@ -1,7 +1,8 @@
 // domain/event-store/event-store.ts
+import { DomainEvent } from '@/domain/shared/domainEventrt'
 import { EventEnvelope } from '@/domain/shared/event-envelope'
 
-export interface EventStore<E extends { type: string }> {
+export interface EventStore<E extends DomainEvent> {
   append(
     aggregateId: string,
     aggregateType: string,
