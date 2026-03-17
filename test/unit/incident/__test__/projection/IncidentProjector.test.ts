@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { IncidentProjector } from "@/projections/incident/incidentProjector";
+import { IncidentProjector } from "@/projections/incident/IncidentProjector";
 import { eventStoreFactory } from "@/test/factories/eventStore.factory";
+import { IncidentEventDTO } from "@/domain/incident/incidentEventSchema";
+import { EventEnvelope } from "@/domain/shared/event-envelope";
 
 describe("IncidentProjector (Clean Setup)", () => {
   let projector: IncidentProjector;
@@ -30,6 +32,19 @@ describe("IncidentProjector (Clean Setup)", () => {
 
     projector = new IncidentProjector(mockPrisma);
   });
+
+  function envelope(event: IncidentEventDTO): EventEnvelope<IncidentEventDTO> {
+    return {
+      eventId:"evt-1",
+      aggregateId: "evt-1",
+      aggregateType: "Incident",
+      aggregateVersion: 1,
+      schemaVersion: 1,
+      causedBy: "Incident",
+      occurredAt: new Date().toISOString(),
+      event,
+    };
+  }
 
   it("インシデント発生を投影できる", async () => {
     const event = eventStoreFactory.build();

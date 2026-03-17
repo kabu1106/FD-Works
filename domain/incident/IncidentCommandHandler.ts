@@ -4,7 +4,7 @@ import { IncidentCommand } from "@/domain/incident/incidentCommands";
 import { IncidentEvent } from "@/domain/incident/incident-events";
 import { EventStoreRepository } from "@/infra/event-store/EventStoreRepository";
 import { OptimisticLockError } from "@/domain/errors/OptimisticLockError";
-import { IncidentProjector } from "@/projections/incident/incidentProjector";
+import { IncidentProjector } from "@/projections/incident/IncidentProjector";
 
 export class IncidentCommandHandler {
   constructor(

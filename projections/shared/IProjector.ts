@@ -1,7 +1,7 @@
-// src/infra/projection/shared/IProjector.ts
-import { EventStore } from "@prisma/client";
+import { EventEnvelope } from "@/domain/shared/event-envelope";
+import { DomainEvent } from "@/domain/shared/domainEventrt";
 
-export interface IProjector<TEvent> {
+export interface IProjector<TEvent extends DomainEvent> {
   name: string;
-  project(events: TEvent[]): Promise<void>;
+  project(events: EventEnvelope<TEvent>[]): Promise<void>;
 }

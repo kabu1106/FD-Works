@@ -1,99 +1,148 @@
-// src/projections/duty/DutyProjector.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { PrismaClient } from "@prisma/client";
 import { DutyProjector } from "@/projections/duty/DutyProjector";
-import { dutyEventFactory } from "@/test/factories/dutyEvent.factory";
+import { PrismaClient } from "@prisma/client";
+import { EventEnvelope } from "@/domain/shared/event-envelope";
+import { DutyEventDTO } from "@/domain/duty/dutyEventSchema";
 
 describe("DutyProjector", () => {
-  let prisma: PrismaClient;
+  let prisma: any;
   let projector: DutyProjector;
 
   beforeEach(() => {
-    // Prismaの各モデルに対するモック関数を用意
     prisma = {
+      $transaction: vi.fn(async (fn) => fn(prisma)),
+
       duty: {
-        upsert: vi.fn(),
-        update: vi.fn(),
-      },
-      workGroupAssignment: {
-        upsert: vi.fn(),
         deleteMany: vi.fn(),
+        create: vi.fn(),
       },
-    } as unknown as PrismaClient;
 
-    projector = new DutyProjector(prisma);
-  });
-
-  it("DutyCreatedイベントでdutyをupsertする", async () => {
-    const event = dutyEventFactory.build({
-      eventType: "DutyCreated",
-      payload: { dutyId: "d1", teamId: 10, date: "2024-05-20" },
-    });
-
-    await projector.projectSingle(event);
-
-    expect(prisma.duty.upsert).toHaveBeenCalledWith({
-      where: { id: "d1" },
-      update: expect.objectContaining({ teamId: 10 }),
-      create: expect.objectContaining({ id: "d1", teamId: 10 }),
-    });
-  });
-
-  it("WorkGroupAssignedToStaffイベントで割り当てをupsertする", async () => {
-    const event = dutyEventFactory.build({
-      eventType: "WorkGroupAssignedToStaff",
-      payload: { dutyId: "d1", staffId: 99, workGroupId: 5 } as any,
-    });
-
-    await projector.projectSingle(event);
-
-    expect(prisma.workGroupAssignment.upsert).toHaveBeenCalledWith({
-      where: {
-        dutyId_staffId: { dutyId: "d1", staffId: 99 },
+      workGroupAssignment: {
+        deleteMany: vi.fn(),
+        create: vi.fn(),
       },
-      update: { workGroupId: 5 },
-      create: { dutyId: "d1", staffId: 99, workGroupId: 5 },
+    };
+
+    projector = new DutyProjector(prisma as unknown as PrismaClient);
+  });
+
+  function envelope(event: DutyEventDTO): EventEnvelope<DutyEventDTO> {
+    return {
+      eventId:"evt-1",
+      aggregateId: "evt-1",
+      aggregateType: "Duty",
+      aggregateVersion: 1,
+      schemaVersion: 1,
+      causedBy: "Duty",
+      occurredAt: new Date().toISOString(),
+      event,
+    };
+  }
+
+  it("creates duty when DutyCreated event is projected", async () => {
+    const dutyId = crypto.randomUUID();
+
+    const events = [
+      envelope({
+        eventType: "DutyCreated",
+        payload: {
+          dutyId,
+          teamId: 1,
+          date: "2025-01-01",
+        },
+      }),
+    ];
+
+    await projector.project(events);
+
+    expect(prisma.$transaction).toHaveBeenCalled();
+
+    expect(prisma.duty.deleteMany).toHaveBeenCalledWith({
+      where: { id: dutyId },
+    });
+
+    expect(prisma.duty.create).toHaveBeenCalled();
+  });
+
+  it("writes workGroup assignments", async () => {
+    const dutyId = crypto.randomUUID();
+
+    const events = [
+      envelope({
+        eventType: "DutyCreated",
+        payload: {
+          dutyId,
+          teamId: 1,
+          date: "2025-01-01",
+        },
+      }),
+      envelope({
+        eventType: "WorkGroupAssignedToStaff",
+        payload: {
+          dutyId,
+          staffId: 10,
+          workGroupId: 3,
+        },
+      }),
+    ];
+
+    await projector.project(events);
+
+    expect(prisma.workGroupAssignment.create).toHaveBeenCalledWith({
+      data: {
+        dutyId,
+        staffId: 10,
+        workGroupId: 3,
+      },
     });
   });
 
-  it("DutyApprovedイベントでステータスをAPPROVEDに更新する", async () => {
-    const event = dutyEventFactory.build({
-      eventType: "DutyApproved",
-      payload: { dutyId: "d1", approvedBy: "admin" },
-    });
+  it("groups events by dutyId", async () => {
+    const dutyA = crypto.randomUUID();
+    const dutyB = crypto.randomUUID();
 
-    await projector.projectSingle(event);
+    const events = [
+      envelope({
+        eventType: "DutyCreated",
+        payload: { dutyId: dutyA, teamId: 1, date: "2025-01-01" },
+      }),
+      envelope({
+        eventType: "DutyCreated",
+        payload: { dutyId: dutyB, teamId: 1, date: "2025-01-02" },
+      }),
+    ];
 
-    expect(prisma.duty.update).toHaveBeenCalledWith({
-      where: { id: "d1" },
-      data: { status: "APPROVED" },
-    });
+    await projector.project(events);
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
   });
 
-  it("StaffUnassignedFromDutyイベントで割り当てを削除する", async () => {
-    const event = dutyEventFactory.build({
-      eventType: "StaffUnassignedFromDuty",
-      payload: { dutyId: "d1", staffId: 99 },
-    });
+  it("removes assignment when StaffUnassignedFromDuty", async () => {
+    const dutyId = crypto.randomUUID();
 
-    await projector.projectSingle(event);
+    const events = [
+      envelope({
+        eventType: "DutyCreated",
+        payload: { dutyId, teamId: 1, date: "2025-01-01" },
+      }),
+      envelope({
+        eventType: "WorkGroupAssignedToStaff",
+        payload: { dutyId, staffId: 10, workGroupId: 3 },
+      }),
+      envelope({
+        eventType: "StaffUnassignedFromDuty",
+        payload: { dutyId, staffId: 10 },
+      }),
+    ];
 
-    expect(prisma.workGroupAssignment.deleteMany).toHaveBeenCalledWith({
-      where: { dutyId: "d1", staffId: 99 },
-    });
-  });
+    await projector.project(events);
 
-  it("DutyLockedイベントでisLockedフラグを立てる", async () => {
-    const event = dutyEventFactory.build({
-      eventType: "DutyLocked",
-      payload: { dutyId: "d1" },
-    });
-
-    await projector.projectSingle(event);
-
-    expect(prisma.duty.update).toHaveBeenCalledWith({
-      where: { id: "d1" },
-      data: expect.objectContaining({ isLocked: true }),
-    });
+    expect(prisma.workGroupAssignment.create).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          staffId: 10,
+        }),
+      })
+    );
   });
 });

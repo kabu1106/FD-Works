@@ -1,91 +1,80 @@
-// src/infra/projection/incident/IncidentProjection.ts
-import { PrismaClient } from "@prisma/client";
-import { IncidentEvent } from "@/domain/incident/incident-events";
+import { IncidentEventDTO } from "@/domain/incident/incidentEventSchema";
+import { IncidentState } from "@/projections/incident/IncidentState";
 
 export class IncidentProjection {
-  constructor(private readonly prisma: PrismaClient) {}
 
-  async project(event: IncidentEvent): Promise<void> {
-    const { eventType, payload } = event;
+  project(state: IncidentState, event: IncidentEventDTO): IncidentState {
 
-    switch (eventType) {
+    switch (event.eventType) {
+
       case "IncidentOccurred":
-        await this.prisma.incidentReadModel.upsert({
-          where: { id: payload.incidentId },
-          update: {
-            dutyId: payload.dutyId,
-            locationId: payload.locationId,
-            occurredAt: new Date(payload.occurredAt),
+
+        return {
+          ...state,
+          incident: {
+            id: event.payload.incidentId,
+            dutyId: event.payload.dutyId,
+            locationId: event.payload.locationId,
+            occurredAt: event.payload.occurredAt,
             status: "OPEN",
-          },
-          create: {
-            id: payload.incidentId,
-            dutyId: payload.dutyId,
-            locationId: payload.locationId,
-            occurredAt: new Date(payload.occurredAt),
-            status: "OPEN",
-          },
-        });
-        break;
+            closedAt: null
+          }
+        };
 
       case "VehicleDispatched":
-        await this.prisma.dispatchedVehicle.create({
-          data: {
-            incidentId: payload.incidentId,
-            vehicleId: payload.vehicleId,
-            dispatchedAt: new Date(payload.dispatchedAt),
-          },
-        });
-        break;
+
+        return {
+          ...state,
+          vehicles: [
+            ...state.vehicles,
+            {
+              vehicleId: event.payload.vehicleId,
+              dispatchedAt: event.payload.dispatchedAt,
+              returnedAt: null,
+              staffIds: []
+            }
+          ]
+        };
 
       case "StaffBoarded":
-        // 車両レコードを特定してスタッフを紐付け
-        const vehicle = await this.prisma.dispatchedVehicle.findUnique({
-          where: {
-            incidentId_vehicleId: {
-              incidentId: payload.incidentId,
-              vehicleId: payload.vehicleId,
-            },
-          },
-        });
 
-        if (vehicle) {
-          await this.prisma.staffInVehicle.create({
-            data: {
-              dispatchedVehicleId: vehicle.id,
-              staffId: payload.staffId,
-            },
-          });
-        }
-        break;
+        return {
+          ...state,
+          vehicles: state.vehicles.map(v =>
+            v.vehicleId === event.payload.vehicleId
+              ? { ...v, staffIds: [...v.staffIds, event.payload.staffId] }
+              : v
+          )
+        };
 
       case "VehicleReturned":
-        await this.prisma.dispatchedVehicle.update({
-          where: {
-            incidentId_vehicleId: {
-              incidentId: payload.incidentId,
-              vehicleId: payload.vehicleId,
-            },
-          },
-          data: {
-            returnedAt: new Date(payload.returnedAt),
-          },
-        });
-        break;
+
+        return {
+          ...state,
+          vehicles: state.vehicles.map(v =>
+            v.vehicleId === event.payload.vehicleId
+              ? { ...v, returnedAt: event.payload.returnedAt }
+              : v
+          )
+        };
 
       case "IncidentClosed":
-        await this.prisma.incidentReadModel.update({
-          where: { id: payload.incidentId },
-          data: {
-            status: "CLOSED",
-            closedAt: new Date(payload.closedAt),
-          },
-        });
-        break;
+
+        return {
+          ...state,
+          incident: state.incident
+            ? {
+                ...state.incident,
+                status: "CLOSED",
+                closedAt: event.payload.closedAt
+              }
+            : state.incident
+        };
 
       default:
-        const _exhaustiveCheck: never = event;
-        throw new Error(`Unhandled event type: ${eventType}`);
+        return state;
     }
+
   }
+
 }

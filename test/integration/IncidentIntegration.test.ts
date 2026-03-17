@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db/prisma";
 import { IncidentCommandHandler } from "@/domain/incident/IncidentCommandHandler";
-import { IncidentProjector } from "@/projections/incident/incidentProjector";
+import { IncidentProjector } from "@/projections/incident/IncidentProjector";
 import { EventStoreRepository } from "@/infra/event-store/EventStoreRepository";
 import { PrismaEventStoreRepository } from "@/infra/event-store/PrismaEventStoreRepository";
 import { IncidentEventDTO } from "@/domain/incident/incidentEventSchema";

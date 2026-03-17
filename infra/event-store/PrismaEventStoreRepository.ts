@@ -26,7 +26,7 @@ export class PrismaEventStoreRepository<T>
   async append(
     aggregateId: string,
     aggregateType: string,
-    events: T[],
+    events: readonly T[],
     expectedVersion: number
   ): Promise<void> {
     try {

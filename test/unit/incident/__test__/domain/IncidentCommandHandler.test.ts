@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi, Mocked } from "vitest";
 import { IncidentCommandHandler } from "@/domain/incident/IncidentCommandHandler";
 import { IncidentEvent } from "@/domain/incident/incident-events";
 import { EventStoreRepository } from "@/infra/event-store/EventStoreRepository";
-import { IncidentProjector } from "@/projections/incident/incidentProjector";
+import { IncidentProjector } from "@/projections/incident/IncidentProjector";
 import { incidentEventFactory } from "@/test/factories/incidentEvent.factory";
 
 describe("IncidentCommandHandler", () => {

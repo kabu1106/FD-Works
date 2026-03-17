@@ -1,129 +1,105 @@
 // src/infra/projection/incident/IncidentProjector.ts
-import { EventStore, PrismaClient, IncidentStatus } from "@prisma/client";
-import { IProjector } from "../shared/IProjector";
-import { IncidentEvent } from "@/domain/incident/incident-events";
-import { IncidentEventDTO } from "@/domain/incident/incidentEventSchema";
 
-/**
- * IncidentReadModel への投影を担うプロジェクター
- * EventStore のイベント群を読み取り最適化モデルへ変換する
- */
+import { PrismaClient } from "@prisma/client";
+import { IProjector } from "../shared/IProjector";
+import { EventEnvelope } from "@/domain/shared/event-envelope";
+import { IncidentEventDTO } from "@/domain/incident/incidentEventSchema";
+import { IncidentProjection } from "@/projections/incident/incidentProjection";
+import {
+  createInitialIncidentState,
+  IncidentState
+} from "@/projections/incident/IncidentState";
+
 export class IncidentProjector implements IProjector<IncidentEventDTO> {
+
   readonly name = "IncidentReadModel";
-  // ↓ この constructor を追加してください
+
+  private projection = new IncidentProjection();
+
   constructor(private readonly prisma: PrismaClient) {}
 
-  // IProjector インターフェース用（バックグラウンドワーカーが使用）
-  async project(events: IncidentEventDTO[]): Promise<void> {
-    for (const event of events) {
-      // EventStore型からドメインイベントを取り出して適用
-      await this.applyEvent(event.payload as unknown as IncidentEvent);
+  async project(events: EventEnvelope<IncidentEventDTO>[]): Promise<void> {
+
+    const grouped = this.groupByIncident(events);
+
+    for (const [incidentId, stream] of Object.entries(grouped)) {
+
+      await this.prisma.$transaction(async (tx) => {
+
+        let state: IncidentState = createInitialIncidentState();
+
+        for (const envelope of stream) {
+          state = this.projection.project(state, envelope.event);
+        }
+
+        // incident
+        await tx.incidentReadModel.deleteMany({
+          where: { id: incidentId }
+        });
+
+        if (state.incident) {
+          await tx.incidentReadModel.create({
+            data: {
+              id: state.incident.id,
+              dutyId: state.incident.dutyId,
+              locationId: state.incident.locationId,
+              occurredAt: new Date(state.incident.occurredAt),
+              status: state.incident.status,
+              closedAt: state.incident.closedAt
+                ? new Date(state.incident.closedAt)
+                : null
+            }
+          });
+        }
+
+        // vehicles
+        await tx.dispatchedVehicle.deleteMany({
+          where: { incidentId }
+        });
+
+        for (const vehicle of state.vehicles) {
+
+          const created = await tx.dispatchedVehicle.create({
+            data: {
+              incidentId,
+              vehicleId: vehicle.vehicleId,
+              dispatchedAt: new Date(vehicle.dispatchedAt),
+              returnedAt: vehicle.returnedAt
+                ? new Date(vehicle.returnedAt)
+                : null
+            }
+          });
+
+          for (const staffId of vehicle.staffIds) {
+            await tx.staffInVehicle.create({
+              data: {
+                dispatchedVehicleId: created.id,
+                staffId
+              }
+            });
+          }
+        }
+
+      });
+
     }
   }
 
-  // ★ 新設: CommandHandlerから「単一のドメインイベント」を受け取るためのメソッド
-  async projectSingle(event: IncidentEvent): Promise<void> {
-    await this.applyEvent(event);
-  }
+  private groupByIncident(events: EventEnvelope<IncidentEventDTO>[]) {
 
-  private async applyEvent(event: IncidentEvent): Promise<void> {
-    const { eventType, payload } = event;
+    return events.reduce((acc, envelope) => {
 
-    await this.prisma.$transaction(async (tx) => {
-      switch (eventType) {
-        case "IncidentOccurred":
-          await tx.incidentReadModel.upsert({
-            where: { id: payload.incidentId },
-            create: {
-              id: payload.incidentId,
-              dutyId: payload.dutyId,
-              locationId: payload.locationId,
-              occurredAt: new Date(payload.occurredAt),
-              status: "OPEN",
-            },
-            update: {
-              dutyId: payload.dutyId,
-              locationId: payload.locationId,
-              occurredAt: new Date(payload.occurredAt),
-            },
-          });
-          break;
+      const incidentId = envelope.event.payload.incidentId;
 
-        case "VehicleDispatched":
-          await tx.dispatchedVehicle.upsert({
-            where: {
-              incidentId_vehicleId: {
-                incidentId: payload.incidentId,
-                vehicleId: payload.vehicleId,
-              },
-            },
-            create: {
-              incidentId: payload.incidentId,
-              vehicleId: payload.vehicleId,
-              dispatchedAt: new Date(payload.dispatchedAt),
-            },
-            update: {
-              dispatchedAt: new Date(payload.dispatchedAt),
-            },
-          });
-          break;
-
-        case "StaffBoarded":
-          // 車両が存在することを前提とするが、upsertで不整合を防止
-          // parentId (DispatchedVehicle) を取得するために findUniqueOrThrow を利用
-          const vehicle = await tx.dispatchedVehicle.findUniqueOrThrow({
-            where: {
-              incidentId_vehicleId: {
-                incidentId: payload.incidentId,
-                vehicleId: payload.vehicleId,
-              },
-            },
-          });
-
-          await tx.staffInVehicle.upsert({
-            where: {
-              dispatchedVehicleId_staffId: {
-                dispatchedVehicleId: vehicle.id,
-                staffId: payload.staffId,
-              },
-            },
-            create: {
-              dispatchedVehicleId: vehicle.id,
-              staffId: payload.staffId,
-            },
-            update: {}, // すでに登録済みの場合は変更なし
-          });
-          break;
-
-        case "VehicleReturned":
-          await tx.dispatchedVehicle.update({
-            where: {
-              incidentId_vehicleId: {
-                incidentId: payload.incidentId,
-                vehicleId: payload.vehicleId,
-              },
-            },
-            data: {
-              returnedAt: new Date(payload.returnedAt),
-            },
-          });
-          break;
-
-        case "IncidentClosed":
-          await tx.incidentReadModel.update({
-            where: { id: payload.incidentId },
-            data: {
-              status: "CLOSED",
-              closedAt: new Date(payload.closedAt),
-            },
-          });
-          break;
-
-        default:
-          // TypeScript の網羅性チェック。新しいイベントが追加された際にコンパイルエラーにする
-          const _exhaustiveCheck: never = event;
-          break;
+      if (!acc[incidentId]) {
+        acc[incidentId] = [];
       }
-    });
+
+      acc[incidentId].push(envelope);
+
+      return acc;
+
+    }, {} as Record<string, EventEnvelope<IncidentEventDTO>[]>);
+
   }
 }

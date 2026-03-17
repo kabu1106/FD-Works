@@ -1,144 +1,88 @@
-// src/projections/duty/DutyProjector.ts
-import { Prisma, PrismaClient } from "@prisma/client";
-import { DutyEventDTO } from "@/domain/duty/dutyEventSchema";
+// src/infra/projection/duty/DutyProjector.ts
 
-export class DutyProjector {
+import { PrismaClient } from "@prisma/client";
+import { IProjector } from "../shared/IProjector";
+import { EventEnvelope } from "@/domain/shared/event-envelope";
+import { DutyEventDTO } from "@/domain/duty/dutyEventSchema";
+import { DutyProjection } from "@/projections/duty/DutyProjection";
+import { createInitialDutyState, DutyState } from "@/projections/duty/DutyState";
+
+export class DutyProjector implements IProjector<DutyEventDTO> {
+
+  readonly name = "DutyProjection";
+
+  private projection = new DutyProjection();
+
   constructor(private readonly prisma: PrismaClient) {}
 
-  /**
-   * 単一のドメインイベントを投影する
-   */
-  async projectSingle(event: DutyEventDTO): Promise<void> {
-    switch (event.eventType) {
-      case "DutyCreated": {
-        const dutyDate = new Date(event.payload.date);
+  async project(events: EventEnvelope<DutyEventDTO>[]): Promise<void> {
 
-        try {
-          await this.prisma.duty.upsert({
-            where: { id: event.payload.dutyId },
-            update: {
-              date: dutyDate,
-              teamId: event.payload.teamId,
-            },
-            create: {
-              id: event.payload.dutyId,
-              date: dutyDate,
-              teamId: event.payload.teamId,
-              status: "UNAPPROVED",
-            },
-          });
-        } catch (error) {
-          if (this.isDateTeamConflict(error)) {
-            // date+team の既存行と id を整合させ、同一勤務イベントを再適用可能にする
-            await this.prisma.duty.update({
-              where: {
-                date_teamId: {
-                  date: dutyDate,
-                  teamId: event.payload.teamId,
-                },
-              },
-              data: {
-                id: event.payload.dutyId,
-                date: dutyDate,
-                teamId: event.payload.teamId,
-              },
-            });
-            break;
-          }
+    const grouped = this.groupByDuty(events);
 
-          throw error;
+    for (const [dutyId, stream] of Object.entries(grouped)) {
+
+      await this.prisma.$transaction(async (tx) => {
+
+        let state: DutyState = createInitialDutyState();
+
+        for (const envelope of stream) {
+          state = this.projection.project(state, envelope.event);
         }
-        break;
 
-      }
-
-      case "StaffAssignedToDuty":
-        // dutiesテーブルへの紐付けは後続のWorkGroupAssignmentで行われるため、
-        // ここでは必要に応じてログ出力や、別の読み取り専用テーブルがあれば更新
-        break;
-
-      case "StaffUnassignedFromDuty":
-        // 割り当て解除時は WorkGroupAssignment から削除
-        await this.prisma.workGroupAssignment.deleteMany({
-          where: {
-            dutyId: event.payload.dutyId,
-            staffId: event.payload.staffId,
-          },
+        await tx.duty.deleteMany({
+          where: { id: dutyId }
         });
-        break;
 
-        case "WorkGroupAssignedToStaff":
-          case "WorkGroupAssignmentChanged": {
-            const { dutyId, staffId } = event.payload;
-            
-            // ✅ 実行時バリデーションの強化
-            if (!dutyId) {
-              throw new Error(`[DutyProjector] Missing dutyId for event: ${event.eventType}`);
+        if (state.duty) {
+          await tx.duty.create({
+            data: {
+              id: state.duty.id,
+              date: new Date(state.duty.date),
+              teamId: state.duty.teamId,
+              status: state.duty.status,
+              isLocked: state.duty.isLocked,
+              lockedAt: state.duty.lockedAt
+                ? new Date(state.duty.lockedAt)
+                : null
             }
-    
-            const workGroupId =
-              event.eventType === "WorkGroupAssignmentChanged"
-                ? event.payload.newWorkGroupId
-                : event.payload.workGroupId;
-     
-            await this.prisma.workGroupAssignment.upsert({
-              where: {
-                dutyId_staffId: {
-                  dutyId: dutyId,
-                  staffId: staffId,
-                },
-              },
-              update: { workGroupId },
-              create: {
-                dutyId: dutyId,
-                staffId: staffId,
-                workGroupId,
-              },
-            });
-            break;
-          }
+          });
+        }
 
-      case "DutyApproved":
-        await this.prisma.duty.update({
-          where: { id: event.payload.dutyId },
-          data: { status: "APPROVED" },
+        await tx.workGroupAssignment.deleteMany({
+          where: { dutyId }
         });
-        break;
 
-      case "DutyApprovalRevoked":
-        await this.prisma.duty.update({
-          where: { id: event.payload.dutyId },
-          data: { status: "UNAPPROVED" },
-        });
-        break;
+        for (const assignment of state.assignments) {
+          await tx.workGroupAssignment.create({
+            data: {
+              dutyId: assignment.dutyId,
+              staffId: assignment.staffId,
+              workGroupId: assignment.workGroupId
+            }
+          });
+        }
 
-      case "DutyLocked":
-        await this.prisma.duty.update({
-          where: { id: event.payload.dutyId },
-          data: {
-            isLocked: true,
-            lockedAt: new Date(),
-          },
-        });
-        break;
+      });
 
-      case "DutyMarkedForRecalculation":
-        // 再計算マーク時はロックを外すなどの処理（要件に応じて）
-        await this.prisma.duty.update({
-          where: { id: event.payload.dutyId },
-          data: { isLocked: false },
-        });
-        break;
     }
   }
 
-  private isDateTeamConflict(error: unknown): boolean {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002" &&
-      Array.isArray(error.meta?.target) &&
-      error.meta?.target.includes("date") &&
-      error.meta?.target.includes("teamId")
-    );
+  private groupByDuty(events: EventEnvelope<DutyEventDTO>[]) {
+
+    return events.reduce((acc, envelope) => {
+
+      const dutyId = envelope.event.payload.dutyId;
+
+      if (!acc[dutyId]) {
+        acc[dutyId] = [];
+      }
+
+      acc[dutyId].push(envelope);
+
+      return acc;
+
+    }, {} as Record<string, EventEnvelope<DutyEventDTO>[]>);
+
   }
+
 }
